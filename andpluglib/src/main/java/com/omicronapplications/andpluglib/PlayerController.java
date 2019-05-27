@@ -1,0 +1,94 @@
+package com.omicronapplications.andpluglib;
+
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import android.util.Log;
+
+public class PlayerController {
+    private static final String TAG = "PlayerController";
+    private final IAndPlugCallback mCallback;
+    private final Context mContext;
+    private PlayerService.PlayerBinder mBinder;
+    private PlayerService mService;
+    private PlayerConnection mConnection;
+
+    public PlayerController(IAndPlugCallback callback, Context context) {
+        mCallback = callback;
+        mContext = context;
+    }
+
+    public void create() {
+        if (mContext == null) {
+            Log.e(TAG, "create: failed to set up ServiceConnection");
+            return;
+        }
+        // Bind to PlayerService
+        mConnection = new PlayerConnection();
+        Intent intent = new Intent(mContext, PlayerService.class);
+        if (!mContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE)) {
+            Log.e(TAG, "create: failed to bind to service");
+        }
+    }
+
+    public boolean destroy() {
+        if ((mContext == null) || (mConnection == null)) {
+            Log.w(TAG, "destroy: failed to unbind from service");
+            return false;
+        }
+        // Unbind from PlayerService
+        mContext.unbindService(mConnection);
+        mConnection = null;
+        return true;
+    }
+
+    public void restart() {
+        destroy();
+        create();
+    }
+
+    public IPlayer getService() {
+        return mService;
+    }
+
+    private class PlayerConnection implements ServiceConnection {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mBinder = (PlayerService.PlayerBinder) service;
+            mService = mBinder.getService();
+            if (mService != null) {
+                mService.setCallback(mCallback);
+            }
+            if (mCallback != null) {
+                mCallback.onServiceConnected();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            if (mCallback != null) {
+                mCallback.onServiceDisconnected();
+            }
+            mBinder = null;
+            mService = null;
+        }
+
+        @Override
+        public void onBindingDied(ComponentName name) {
+            if (mConnection != null) {
+                mContext.unbindService(mConnection);
+                mConnection = null;
+            }
+        }
+
+        @Override
+        public void onNullBinding(ComponentName name) {
+            if (mConnection != null) {
+                mContext.unbindService(mConnection);
+                mConnection = null;
+            }
+        }
+    }
+}
