@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">AndPlugTest</string>
+    <string name="create">Create</string>
+    <string name="destroy">Destroy</string>
+    <string name="initialize">Init</string>
+    <string name="uninitialuze">Uninit</string>
+    <string name="previous">Previous</string>
+    <string name="info">Info</string>
+    <string name="next">Next</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="stop">Stop</string>
+    <string name="previous_song">Prev song</string>
+    <string name="next_song">Next song</string>
 </resources>

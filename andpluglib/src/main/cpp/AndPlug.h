@@ -3,12 +3,13 @@
 
 #include "adplug.h"
 #include "emuopl.h"
+#include <memory>
 
 class AndPlug {
 public:
     AndPlug();
     ~AndPlug();
-    CPlayer* Load(const char* song, Copl* opl);
+    void Load(const char* song, Copl* opl);
     void Unload();
     bool isLoaded();
 
@@ -38,7 +39,7 @@ public:
     const char* GetInstrument(unsigned int n); // returns n-th instrument name
 
 private:
-    CPlayer* m_p;
+    std::unique_ptr<CPlayer> m_p;
 };
 
 #endif //ANDPLUG_H

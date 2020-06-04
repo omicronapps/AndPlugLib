@@ -20,17 +20,22 @@ public class PlayerController {
         mContext = context;
     }
 
-    public void create() {
+    public boolean create() {
         if (mContext == null) {
             Log.e(TAG, "create: failed to set up ServiceConnection");
-            return;
+            return false;
         }
         // Bind to PlayerService
-        mConnection = new PlayerConnection();
+        if (mConnection == null) {
+            mConnection = new PlayerConnection();
+        } else {
+            Log.w(TAG, "create: ServiceConnection instance already created");
+        }
         Intent intent = new Intent(mContext, PlayerService.class);
         if (!mContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE)) {
             Log.e(TAG, "create: failed to bind to service");
         }
+        return true;
     }
 
     public boolean destroy() {

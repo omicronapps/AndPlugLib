@@ -5,17 +5,7 @@
 
 #define LOG_TAG "andplayer-jni"
 
-extern "C"
-{
-
-static AndPlug* GetPlug(jlong ptr) {
-    AndPlug* plug = NULL;
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        plug = opl->GetPlug();
-    }
-    return plug;
-}
+static Opl opl;
 
 static jstring getJstring(JNIEnv *env, const char *bytes) {
     char str[512];
@@ -32,213 +22,169 @@ static jstring getJstring(JNIEnv *env, const char *bytes) {
     return jdesc;
 }
 
-JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_create(JNIEnv* env, jobject thiz, jint rate, jboolean bit16, jboolean usestereo, jboolean left, jboolean right) {
-    Opl *opl = new Opl(rate, bit16, usestereo, left, right);
-    return reinterpret_cast<jlong>(opl);
+extern "C"
+{
+
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_initialize(JNIEnv* env, jobject thiz, jint rate, jboolean bit16, jboolean usestereo, jboolean left, jboolean right) {
+    opl.Initialize(rate, bit16, usestereo, left, right);
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_destroy(JNIEnv* env, jobject thiz, jlong ptr) {
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        delete opl;
-    } else {
-        LOGW(LOG_TAG, "destroy: no Opl instance");
-    }
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_uninitialize(JNIEnv* env, jobject thiz) {
+    opl.Uninitialize();
 }
 
-JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_load(JNIEnv *env, jobject thiz, jlong ptr, jstring str) {
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_load(JNIEnv *env, jobject thiz, jstring str) {
     const char *song = env->GetStringUTFChars(str, 0);
-
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    CPlayer* p = NULL;
-    if (opl != NULL) {
-        p = opl->Load(song);
-    } else {
-        LOGW(LOG_TAG, "load: no Opl instance");
-    }
+    opl.Load(song);
     env->ReleaseStringUTFChars(str, song);
-    return reinterpret_cast<jlong>(p);
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_unload(JNIEnv* env, jobject thiz, jlong ptr) {
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        opl->Unload();
-    } else {
-        LOGW(LOG_TAG, "unload: no Opl instance");
-    }
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_unload(JNIEnv* env, jobject thiz) {
+    opl.Unload();
 }
 
-JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_isLoaded(JNIEnv* env, jobject thiz, jlong ptr) {
+JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_isLoaded(JNIEnv* env, jobject thiz) {
     jboolean isLoaded = JNI_FALSE;
-    if (ptr != 0) {
-        AndPlug *plug = GetPlug(ptr);
+    AndPlug *plug = opl.GetPlug();
+    if (plug != nullptr) {
         isLoaded = (jboolean) (plug->isLoaded() ? JNI_TRUE : JNI_FALSE);
     }
-
     return isLoaded;
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplWrite(JNIEnv* env, jobject thiz, jlong ptr, jint reg, jint val) {
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        opl->Write(reg, val);
-    } else {
-        LOGW(LOG_TAG, "write: no Opl instance");
-    }
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplWrite(JNIEnv* env, jobject thiz, jint reg, jint val) {
+    opl.Write(reg, val);
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplSetchip(JNIEnv* env, jobject thiz, jlong ptr, jint n) {
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        opl->SetChip(n);
-    } else {
-        LOGW(LOG_TAG, "oplSetchip: no Opl instance");
-    }
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplSetchip(JNIEnv* env, jobject thiz, jint n) {
+    opl.SetChip(n);
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplGetchip(JNIEnv* env, jobject thiz, jlong ptr) {
-    jint chip = -1;
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        chip = opl->GetChip();
-    } else {
-        LOGW(LOG_TAG, "oplGetchip: no Opl instance");
-    }
-
-    return chip;
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplGetchip(JNIEnv* env, jobject thiz) {
+    return opl.GetChip();
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplInit(JNIEnv* env, jobject thiz, jlong ptr) {
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        opl->Init();
-    } else {
-        LOGW(LOG_TAG, "init: no Opl instance");
-    }
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplInit(JNIEnv* env, jobject thiz) {
+    opl.Init();
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplGettype(JNIEnv* env, jobject thiz, jlong ptr) {
-    int type = -1;
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
-    if (opl != NULL) {
-        type = opl->GetType();
-    } else {
-        LOGW(LOG_TAG, "oplGettype: no Opl instance");
-    }
-
-    return type;
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplGettype(JNIEnv* env, jobject thiz) {
+    return opl.GetType();
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate16(JNIEnv* env, jobject thiz, jlong ptr, jshortArray array, jint samples, jboolean repeat) {
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate16(JNIEnv* env, jobject thiz, jshortArray array, jint samples, jboolean repeat) {
     if ((array == 0) || (samples == 0)) {
         return 0;
     }
     unsigned long newsamples = 0;
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
     jshort* buf = env->GetShortArrayElements(array, 0);
 
-    if (opl != NULL) {
-        newsamples = opl->Opl::Update16(buf, samples, repeat);
-    } else {
-        LOGW(LOG_TAG, "update16: no Opl instance");
-    }
+    newsamples = opl.Opl::Update16(buf, samples, repeat);
     env->ReleaseShortArrayElements(array, buf, 0);
 
     return (jint) (newsamples & 0xFFFFFFFF);
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate8(JNIEnv* env, jobject thiz, jlong ptr, jbyteArray array, jint samples, jboolean repeat) {
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate8(JNIEnv* env, jobject thiz, jbyteArray array, jint samples, jboolean repeat) {
     if ((array == 0) || (samples == 0)) {
         return 0;
     }
     unsigned long newsamples = 0;
-    Opl* opl = reinterpret_cast<Opl*>(ptr);
     jbyte* buf = env->GetByteArrayElements(array, 0);
 
-    if (opl != NULL) {
-        newsamples = opl->Opl::Update8((char*) buf, samples, repeat);
-    } else {
-        LOGW(LOG_TAG, "update8: no Opl instance");
-    }
+    newsamples = opl.Opl::Update8((char*) buf, samples, repeat);
     env->ReleaseByteArrayElements(array, buf, 0);
 
     return (jint) (newsamples & 0xFFFFFFFF);
 }
 
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplDebugPath(JNIEnv* env, jobject thiz, jstring str){
+    const char *filename = env->GetStringUTFChars(str, 0);
+    opl.DebugPath(filename);
+    env->ReleaseStringUTFChars(str, filename);
+}
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetversion(JNIEnv* env, jobject thiz) {
     const char* version = AndPlug::GetVersion();
     jstring jversion = env->NewStringUTF(version);
-
     return jversion;
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugSeek(JNIEnv* env, jobject thiz, jlong ptr, jlong ms) {
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
-        plug->Seek(ms);
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugSeek(JNIEnv* env, jobject thiz, jlong ms) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
+        plug->Seek(static_cast<unsigned long>(ms));
     }
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugRewind(JNIEnv* env, jobject thiz, jlong ptr, jint subsong) {
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugRewind(JNIEnv* env, jobject thiz, jint subsong) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         plug->Rewind(subsong);
     }
 }
 
-JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugSonglength(JNIEnv* env, jobject thiz, jlong ptr, jint subsong) {
+JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugSonglength(JNIEnv* env, jobject thiz, jint subsong) {
     long length = -1;
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         length = plug->SongLength(subsong);
     }
-
     return length;
 }
 
-JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettype(JNIEnv* env, jobject thiz, jlong ptr) {
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettype(JNIEnv* env, jobject thiz) {
     const char* type = NULL;
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         type = plug->GetType().c_str();
     }
-    jstring jtype = getJstring(env, type);
-
-    return jtype;
+    return getJstring(env, type);
 }
 
-JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettitle(JNIEnv* env, jobject thiz, jlong ptr) {
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettitle(JNIEnv* env, jobject thiz) {
     const char* title = NULL;
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         title = plug->GetTitle().c_str();
     }
-    jstring jtitle = getJstring(env, title);
-
-    return jtitle;
+    return getJstring(env, title);
 }
 
-JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetauthor(JNIEnv* env, jobject thiz, jlong ptr) {
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetauthor(JNIEnv* env, jobject thiz) {
     const char* author = NULL;
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         author = plug->GetAuthor().c_str();
     }
-    jstring jauthor = getJstring(env, author);
-
-    return jauthor;
+    return getJstring(env, author);
 }
 
-JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetdesc(JNIEnv* env, jobject thiz, jlong ptr) {
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetdesc(JNIEnv* env, jobject thiz) {
     const char* desc = NULL;
-    AndPlug* plug = GetPlug(ptr);
-    if ((plug != NULL) && plug->isLoaded()) {
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
         desc = plug->GetDesc().c_str();
     }
-    jstring jdesc = getJstring(env, desc);
-
-    return jdesc;
+    return getJstring(env, desc);
 }
+
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetsubsongs(JNIEnv* env, jobject thiz) {
+    int numsubsongs = -1;
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
+        numsubsongs = plug->GetSubsongs();
+    }
+    return numsubsongs;
+}
+
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetsubsong(JNIEnv* env, jobject thiz) {
+    int cursubsong = -1;
+    AndPlug* plug = opl.GetPlug();
+    if (plug != nullptr && plug->isLoaded()) {
+        cursubsong = plug->GetSubsong();
+    }
+    return cursubsong;
+}
+
 } // extern "C"

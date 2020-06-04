@@ -1,3 +1,54 @@
+diff --git a/src/emuopl.cpp b/src/emuopl.cpp
+index 42f40a3..66c65e1 100644
+--- a/src/emuopl.cpp
++++ b/src/emuopl.cpp
+@@ -39,6 +39,7 @@ CEmuopl::~CEmuopl()
+   if(mixbufSamples) {
+     delete [] mixbuf0;
+     delete [] mixbuf1;
++    delete [] mixbuf2;
+   }
+ }
+ 
+@@ -48,12 +49,13 @@ void CEmuopl::update(short *buf, int samples)
+ 
+   //ensure that our mix buffers are adequately sized
+   if(mixbufSamples < samples) {
+-    if(mixbufSamples) { delete[] mixbuf0; delete[] mixbuf1; }
++    if(mixbufSamples) { delete[] mixbuf0; delete[] mixbuf1; delete[] mixbuf2; }
+     mixbufSamples = samples;
+ 
+     //*2 = make room for stereo, if we need it
+     mixbuf0 = new short[samples*2]; 
+     mixbuf1 = new short[samples*2];
++    mixbuf2 = new short[samples*2];
+   }
+ 
+   //data should be rendered to outbuf
+@@ -68,9 +70,7 @@ void CEmuopl::update(short *buf, int samples)
+   short *tempbuf=mixbuf0;
+   short *tempbuf2=mixbuf1;
+   if(use16bit) outbuf = buf;
+-  else outbuf = mixbuf1;
+-  //...there is a potentially confusing situation where mixbuf1 can be aliased.
+-  //beware. it is a little loony.
++  else outbuf = mixbuf2;
+ 
+   //all of the following rendering code produces 16bit output
+ 
+diff --git a/src/emuopl.h b/src/emuopl.h
+index dd2f29e..12878f8 100644
+--- a/src/emuopl.h
++++ b/src/emuopl.h
+@@ -42,7 +42,7 @@ class CEmuopl: public Copl
+  private:
+   bool		use16bit, stereo;
+   FM_OPL	*opl[2];				// OPL2 emulator data
+-  short		*mixbuf0, *mixbuf1;
++  short		*mixbuf0, *mixbuf1, *mixbuf2;
+   int		mixbufSamples;
+ };
+ 
 diff --git a/src/version.h b/src/version.h
 new file mode 100644
 index 0000000..bc9e455

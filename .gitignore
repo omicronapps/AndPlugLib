@@ -12,6 +12,7 @@
 /captures
 .externalNativeBuild
 app/src/main/assets/*
+andpluglib/.cxx
 andpluglib/src/androidTest/res/raw/*
 andpluglib/src/main/cpp/adplug
 andpluglib/src/main/cpp/libbinio

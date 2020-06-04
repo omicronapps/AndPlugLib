@@ -108,10 +108,10 @@ public class PlayerServiceTest {
     @Test
     public void testDuplicateCalls() throws TimeoutException {
         // Multiple setups
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
 
         // Multiple loads
         File f = fileFromResources("Super_Nova", ".d00", raw.super_nova_d00);
@@ -140,17 +140,17 @@ public class PlayerServiceTest {
         service.unload();
 
         // Multiple teardowns
-        service.destroy();
+        service.uninitialize();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
-        service.destroy();
+        service.uninitialize();
     }
 
     @Test
     public void testLoadAndPlay() throws TimeoutException {
         // Setup
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
@@ -175,7 +175,7 @@ public class PlayerServiceTest {
         service.unload();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
-        service.destroy();
+        service.uninitialize();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
@@ -183,7 +183,7 @@ public class PlayerServiceTest {
     @Test
     public void testMultipleSongs() throws TimeoutException {
         // Setup
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
@@ -266,7 +266,7 @@ public class PlayerServiceTest {
         service.unload();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
-        service.destroy();
+        service.uninitialize();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
@@ -274,7 +274,7 @@ public class PlayerServiceTest {
     @Test
     public void testPlaybackControls() throws TimeoutException {
         // Setup
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
@@ -314,7 +314,7 @@ public class PlayerServiceTest {
         service.unload();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
-        service.destroy();
+        service.uninitialize();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
@@ -322,7 +322,7 @@ public class PlayerServiceTest {
     @Test
     public void testSongNotLoaded() throws TimeoutException {
         // Setup
-        service.create(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 32, 1024);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
@@ -348,7 +348,7 @@ public class PlayerServiceTest {
         service.unload();
 
         // Teardown
-        service.destroy();
+        service.uninitialize();
         waitForCallback();
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
@@ -356,7 +356,7 @@ public class PlayerServiceTest {
     @Test
     public void testUninitializedCalls() throws TimeoutException {
         // Teardown without setup (ignored)
-        service.destroy();
+        service.uninitialize();
 
         // Uninitialized unload
         service.unload();

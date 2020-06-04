@@ -15,7 +15,7 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 - [Testing](#testing)
 - [Usage](#usage)
 - [Example](#example)
-- [Credits](#eredits)
+- [Credits](#credits)
 - [Release History](#release-history)
 - [License](#license)
 
@@ -23,7 +23,7 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 
 - [Android 4.0.3](https://developer.android.com/about/versions/android-4.0.3) (API Level: 15) or later (`ICE_CREAM_SANDWICH_MR1`)
 - [CMake](https://cmake.org/) Release 3.4.1 or later
-- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 3.4.1 or later (`gradle:3.4.1`)
+- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 3.6.3 or later (`gradle:3.6.3`)
 - [AdPlug](https://github.com/adplug/adplug) Version 2.3.1 (_branch/tag:_ `release-2.3.1`)
 - [libbinio](https://github.com/adplug/libbinio) Version 1.4 (_tag:_ `libbionio-1.4`)
 
@@ -124,9 +124,9 @@ Returns a reference to a `PlayerService` instance. Only valid between `onService
 
 ### `IPlayer`
 
-#### create
+#### initialize
 
-```void create(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int bufferCount, int samples)```
+```void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int bufferCount, int samples)```
 
 Create native AdPlug instance and initialize `AudioTrack`. Confirmed initialized if `onNewState()` callback returns `PlayerState.CREATED`.
 
@@ -139,9 +139,9 @@ Arguments:
 - `bufferCount` - buffer count
 - `samples` - samples pre buffer (bytes)
 
-#### destroy
+#### uninitialize
 
-```void destroy()```
+```void uninitialize()```
 
 Destroy native AdPlug instance and release `AudioTrack`. Confirmed destroyed if `onNewState()` callback returns `PlayerState.DEFAULT`.
 
@@ -292,7 +292,7 @@ Retrieve `IPlayer` object on `IAndPlugCallback.onServiceConnected()` callback, a
 import com.omicronapplications.andpluglib.IPlayer;
 
 IPlayer player = mController.getService();
-player.create(44100, true, false, true, false, 32, 1024);
+player.initialize(44100, true, false, true, false, 32, 1024);
 player.load("the alibi.d00");
 player.play();
 ```
@@ -302,7 +302,7 @@ Stop playback and unload song:
 ```
 player.stop();
 player.unload();
-player.destroy();
+player.uninitialize();
 ```
 
 Destroy `PlayerController` instance to unbind from `PlayerService`:
@@ -313,11 +313,12 @@ controller.destroy();
 
 ## Credits
 
-Copyright (C) 2019 [Fredrik Claesson](https://github.com/omicronapps)
+Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 
 ## Release History
 
 - 1.0.0 Initial release
+- 1.1.0 Player service refactored
 
 ## License
 
