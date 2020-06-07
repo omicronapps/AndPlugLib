@@ -23,9 +23,9 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 
 - [Android 4.0.3](https://developer.android.com/about/versions/android-4.0.3) (API Level: 15) or later (`ICE_CREAM_SANDWICH_MR1`)
 - [CMake](https://cmake.org/) Release 3.4.1 or later
-- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 3.6.3 or later (`gradle:3.6.3`)
-- [AdPlug](https://github.com/adplug/adplug) Version 2.3.1 (_branch/tag:_ `release-2.3.1`)
-- [libbinio](https://github.com/adplug/libbinio) Version 1.4 (_tag:_ `libbionio-1.4`)
+- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.0.0) or later (`gradle:4.0.0`)
+- [AdPlug](https://github.com/adplug/adplug) Version 2.3.2 (_branch/tag:_ `release-2.3.2`)
+- [libbinio](https://github.com/adplug/libbinio) Version 1.5 (_tag:_ `libbionio-1.5`)
 
 ## Installation
 
@@ -69,12 +69,16 @@ wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/JCH/the%20alibi.d00 the
 
 Located under `app/src/main`.
 
-Uses hardcoded path to EdLib song for playback testing (can be replaced by any other AdPlug compatible song).
+Uses hardcoded path to EdLib songs for playback testing (can be replaced by any other AdPlug compatible songs).
 
 Setup steps:
 ```
 cd AndPlugLib/app/src/main/assets/
-wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/JCH/the%20alibi.d00 
+wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/MSK/en%20lille%20test.d00 
+wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/MSK/fresh.d00
+wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/JCH/gone.d00
+wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/Drax/coop-Metal/super%20nova.d00
+wget http://modland.com/pub/modules/Ad%20Lib/EdLib%20D00/JCH/the%20alibi.d00
 ```
 
 ## Usage
@@ -178,6 +182,15 @@ Pause playback. Song playback paused once `onNewState()` callback returns `Playe
 
 Stop playback. Song playback stopped once `onNewState()` callback returns `PlayerState.STOPPED`.
 
+#### rewind
+
+```void rewind(int subsong)```
+
+Select sub-song.
+
+Argument:
+- `subsong` - index of sub-song
+
 #### setRepeat
 
 ```void setRepeat(boolean repeat)```
@@ -216,6 +229,27 @@ Return song author.
 ```String getDesc()```
 
 Return song description.
+
+#### getSubsongs
+
+```int getSubsongs()```
+
+Get number of sub-songs.
+
+#### getSubsong
+
+```int getSubsong()```
+
+Get current sub-songs.
+
+#### debugPath
+
+```void debugPath(String path)```
+
+Debug use only! Output PCM data to file.
+
+Argument:
+- `path` - true: path to store PCM data
 
 #### getState
 
@@ -319,6 +353,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 
 - 1.0.0 Initial release
 - 1.1.0 Player service refactored
+- 1.2.0 Updated to AdPlug v2.3.2 and libbinio v1.5, migrated to AndroidX
 
 ## License
 

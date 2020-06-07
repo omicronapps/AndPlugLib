@@ -51,8 +51,8 @@ index dd2f29e..12878f8 100644
  
 diff --git a/src/version.h b/src/version.h
 new file mode 100644
-index 0000000..bc9e455
+index 0000000..f3eb53b
 --- /dev/null
 +++ b/src/version.h
 @@ -0,0 +1 @@
-+#define ADPLUG_VERSION "2.3.1"
++#define ADPLUG_VERSION "2.3.2"

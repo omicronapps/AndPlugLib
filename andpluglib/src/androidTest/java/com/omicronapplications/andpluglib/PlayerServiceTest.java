@@ -2,9 +2,9 @@ package com.omicronapplications.andpluglib;
 
 import android.content.Intent;
 import android.os.IBinder;
-import android.support.test.InstrumentationRegistry;
-import android.support.test.rule.ServiceTestRule;
-import android.support.test.runner.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.rule.ServiceTestRule;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.omicronapplications.andpluglib.test.R.raw;
 
@@ -60,7 +60,7 @@ public class PlayerServiceTest {
         File f = null;
         try {
             f = File.createTempFile(prefix, suffix);
-            InputStream is = InstrumentationRegistry.getContext().getResources().openRawResource(id);
+            InputStream is = InstrumentationRegistry.getInstrumentation().getContext().getResources().openRawResource(id);
             int size = is.available();
             byte[] buffer = new byte[size];
             int num = is.read(buffer);
@@ -90,7 +90,7 @@ public class PlayerServiceTest {
     @BeforeClass
     public static void startService() throws TimeoutException {
         System.loadLibrary("andplug");
-        Intent intent = new Intent(InstrumentationRegistry.getTargetContext(), PlayerService.class);
+        Intent intent = new Intent(InstrumentationRegistry.getInstrumentation().getTargetContext(), PlayerService.class);
         IBinder binder = mServiceRule.bindService(intent);
         service = ((PlayerService.PlayerBinder) binder).getService();
         callback = new Callback();
@@ -332,7 +332,7 @@ public class PlayerServiceTest {
         // Unloaded stop - resume - pause - play
         service.stop();
         waitForCallback();
-        assertEquals(IPlayer.PlayerState.ERROR, service.getState());
+        assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
         service.play();
         service.pause();
         service.play();
