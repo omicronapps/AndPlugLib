@@ -63,6 +63,7 @@ public class PlayerService extends Service implements
     private static final String BUNDLE_SONG = "song";
     private static final String BUNDLE_SUBSONG = "subsong";
     private static final String BUNDLE_DEBUGPATH = "path";
+    private static final int WATCHDOG_TIMEOUT = 500;
     private final IBinder mBinder = new PlayerBinder();
     private HandlerThread mMessageThread;
     private MessageCallback mMessageCallback;
@@ -71,10 +72,10 @@ public class PlayerService extends Service implements
     private PlayerRunner mPlayerRunner;
     private Handler mPlayerHandler;
     private Handler mWatchdogHandler;
+    private Handler mReplyHandler;
     private volatile boolean mRepeat;
     private volatile PlayerState mState;
     private PlayerState mLostState;
-    private IAndPlugCallback mCallback;
     private WatchdogTimer mWatchdogRunnable;
     private String mSong;
     private String mTitle;
@@ -125,13 +126,13 @@ public class PlayerService extends Service implements
 
         mWatchdogRunnable = new WatchdogTimer();
         mWatchdogHandler = new Handler(getMainLooper(), mWatchdogRunnable);
-        setState(PlayerRequest.SERVICE, PlayerState.DEFAULT);
+        setState(PlayerRequest.SERVICE, PlayerState.DEFAULT, null);
     }
 
     @Override
     public void onDestroy() {
+        mMessageHandler.removeCallbacksAndMessages(null);
         if (mMessageThread != null) {
-            mMessageHandler.removeCallbacksAndMessages(null);
             sendMessageToHandler(PLAYER_DESTROY, null);
         }
     }
@@ -165,7 +166,7 @@ public class PlayerService extends Service implements
             synchronized (mWatchdogLock) {
                 if (!mStateChanged) {
                     Log.e(TAG, "Player thread stuck");
-                    setState(PlayerRequest.WATCHDOG, PlayerState.FATAL);
+                    setState(PlayerRequest.WATCHDOG, PlayerState.FATAL, "AdPlug unresponsive");
                 }
                 mStateChanged = false;
             }
@@ -194,10 +195,14 @@ public class PlayerService extends Service implements
         public void run() {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
             boolean hasSamples = true;
+            boolean dataWritten = false;
+            PlayerState state = PlayerState.DEFAULT;
+            String info = null;
             if (mTrack == null || (mBuf16 == null && mBuf8 == null) || !mAdPlayer.isLoaded()) {
                 Log.w(TAG, "run: not initialized: mTrack:" + mTrack + ", mBuf:" + mBuf16 + ", mBuf8:" + mBuf8 + ", isLoaded:" + mAdPlayer.isLoaded());
-                setState(PlayerRequest.RUN, PlayerState.ERROR);
                 hasSamples = false;
+                state = PlayerState.ERROR;
+                info = "Not initialized";
             }
             while (mIsRunning && hasSamples) {
                 int writtenSample = -1;
@@ -215,6 +220,12 @@ public class PlayerService extends Service implements
                     if (Thread.interrupted()) {
                         throw new InterruptedException();
                     }
+                    if (!dataWritten) {
+                        Log.w(TAG, "run: empty song");
+                        dataWritten = hasSamples;
+//                        state = PlayerState.ERROR;
+//                        info = "Nothing played back";
+                    }
                 } catch (InterruptedException e) {
                     Log.e(TAG, "run: exiting player thread");
                     break;
@@ -223,13 +234,15 @@ public class PlayerService extends Service implements
                 }
                 if (writtenSample <= AudioManager.ERROR) {
                     Log.e(TAG, "run: writtenSample: " + writtenSample);
-                    setState(PlayerRequest.RUN, PlayerState.ERROR);
+                    state = PlayerState.ERROR;
+                    info = "AudioTrack error: " + writtenSample;
                     break;
                 }
             }
-            if (mState != PlayerState.ERROR) {
-                setState(PlayerRequest.RUN, mIsRunning ? PlayerState.ENDED : PlayerState.STOPPED);
+            if (state == PlayerState.DEFAULT) {
+                state = mIsRunning ? PlayerState.ENDED : PlayerState.STOPPED;
             }
+            setState(PlayerRequest.RUN, state, info);
         }
     }
 
@@ -330,12 +343,12 @@ public class PlayerService extends Service implements
                     int samples = data.getInt(BUNDLE_SAMPLES);
                     if (rate <= 0 || bufferCount <= 0 || samples <= 0) {
                         Log.e(TAG, "initialize: illegal player configuration, rate:" + rate + ", bufferCount:" + bufferCount + ", samples:" + samples);
-                        setState(PlayerRequest.INITIALIZE, PlayerState.FATAL);
+                        setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize: " + rate + "/" + bufferCount + "/" + samples);
                         break;
                     }
                     try {
                         messageLock();
-                        shutdownPlayer();//stopPlayer();//shutdownPlayer();//
+                        shutdownPlayer();
                         // Create native player instance
                         mAdPlayer.initialize(rate, bit16, usestereo, left, right);
                         // Create audio player
@@ -373,7 +386,7 @@ public class PlayerService extends Service implements
                     } finally {
                         messageUnlock();
                     }
-                    setState(PlayerRequest.INITIALIZE, PlayerState.CREATED);
+                    setState(PlayerRequest.INITIALIZE, PlayerState.CREATED, null);
                     break;
 
                 case PLAYER_UNINITIALIZE:
@@ -385,7 +398,7 @@ public class PlayerService extends Service implements
                         messageUnlock();
                     }
                     PlayerRequest request = (msg.what == PLAYER_UNINITIALIZE) ? PlayerRequest.UNINITIALIZE : PlayerRequest.DESTROY;
-                    setState(request, PlayerState.DEFAULT);
+                    setState(request, PlayerState.DEFAULT, null);
                     break;
 
                 case PLAYER_LOAD:
@@ -394,7 +407,7 @@ public class PlayerService extends Service implements
                     String song = data.getString(BUNDLE_SONG);
                     if (song == null || song.isEmpty()) {
                         Log.w(TAG, "load: not initialized: " + song);
-                        setState(PlayerRequest.LOAD, PlayerState.ERROR);
+                        setState(PlayerRequest.LOAD, PlayerState.ERROR, "No song selected");
                         break;
                     }
                     try {
@@ -415,7 +428,7 @@ public class PlayerService extends Service implements
                                 mWatchdogHandler.sendMessage(watchdog);
                             }
                         } else {
-                            Log.w(TAG, "load: not loaded");
+                            Log.w(TAG, "load: not loaded: " + song);
                             mSong = "";
                             mTitle = "";
                             mAuthor = "";
@@ -427,7 +440,7 @@ public class PlayerService extends Service implements
                         messageUnlock();
                     }
                     PlayerState state = loaded ? PlayerState.LOADED : PlayerState.ERROR;
-                    setState(PlayerRequest.LOAD, state);
+                    setState(PlayerRequest.LOAD, state, loaded ? null : "Failed to load song");
                     break;
 
                 case PLAYER_UNLOAD:
@@ -445,7 +458,7 @@ public class PlayerService extends Service implements
                     } finally {
                         messageUnlock();
                     }
-                    setState(PlayerRequest.UNLOAD, PlayerState.CREATED);
+                    setState(PlayerRequest.UNLOAD, PlayerState.CREATED, null);
                     break;
 
                 case PLAYER_PLAY:
@@ -457,7 +470,7 @@ public class PlayerService extends Service implements
                         messageUnlock();
                     }
                     state = playing ? PlayerState.PLAYING : PlayerState.ERROR;
-                    setState(PlayerRequest.PLAY, state);
+                    setState(PlayerRequest.PLAY, state, playing ? null : "Failed to play song");
                     break;
 
                 case PLAYER_PAUSE:
@@ -471,7 +484,7 @@ public class PlayerService extends Service implements
                         }
                     }
                     state = paused ? PlayerState.PAUSED : PlayerState.ERROR;
-                    setState(PlayerRequest.PAUSE, state);
+                    setState(PlayerRequest.PAUSE, state, paused ? null : "Failed to pause song");
                     break;
 
                 case PLAYER_STOP:
@@ -481,7 +494,7 @@ public class PlayerService extends Service implements
                     } finally {
                         messageUnlock();
                     }
-                    setState(PlayerRequest.STOP, PlayerState.STOPPED);
+                    setState(PlayerRequest.STOP, PlayerState.STOPPED, null);
                     break;
 
                 case PLAYER_REWIND:
@@ -515,14 +528,22 @@ public class PlayerService extends Service implements
         }
     }
 
-    private void setState(PlayerRequest request, PlayerState state) {
+    private void setState(PlayerRequest request, PlayerState state, String info) {
         if (request == PlayerRequest.DESTROY) {
             postDestroy();
         }
         if (mState != state) {
             mState = state;
-            if (mCallback != null) {
-                mCallback.onNewState(request, mState);
+            if (mReplyHandler != null) {
+                Message msg = mReplyHandler.obtainMessage(PLAYER_STATE);
+                Bundle data = new Bundle();
+                data.putInt(IPlayer.BUNDLE_REQUEST, request.toInt());
+                data.putInt(IPlayer.BUNDLE_STATE, state.toInt());
+                if (info != null) {
+                    data.putString(IPlayer.BUNDLE_INFO, info);
+                }
+                msg.setData(data);
+                mReplyHandler.sendMessage(msg);
             }
         }
     }
@@ -594,6 +615,11 @@ public class PlayerService extends Service implements
         mPlayerRunner = null;
         mPlayerHandler = null;
 
+        if (mReplyHandler != null) {
+            mReplyHandler.removeCallbacksAndMessages(null);
+        }
+        mReplyHandler = null;
+
         mWatchdogHandler.removeCallbacksAndMessages(null);
         mWatchdogRunnable = null;
         mWatchdogHandler = null;
@@ -622,8 +648,8 @@ public class PlayerService extends Service implements
         }
     }
 
-    public void setCallback(IAndPlugCallback callback) {
-        mCallback = callback;
+    public void setHandler(Handler handler) {
+        mReplyHandler = handler;
     }
 
     @Override
@@ -651,7 +677,7 @@ public class PlayerService extends Service implements
         sendMessageToHandler(PLAYER_LOAD, data);
         if (mWatchdogHandler != null) {
             mWatchdogHandler.removeCallbacks(mWatchdogRunnable);
-            mWatchdogHandler.postDelayed(mWatchdogRunnable, 2500);
+            mWatchdogHandler.postDelayed(mWatchdogRunnable, WATCHDOG_TIMEOUT);
         }
     }
 

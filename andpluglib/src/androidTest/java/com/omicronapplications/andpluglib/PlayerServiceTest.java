@@ -1,7 +1,12 @@
 package com.omicronapplications.andpluglib;
 
 import android.content.Intent;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
+
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ServiceTestRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -40,7 +45,7 @@ public class PlayerServiceTest {
         public void onServiceDisconnected() {}
 
         @Override
-        public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state) {
+        public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state, String info) {
             completableFuture.complete(state);
         }
     }
@@ -84,6 +89,23 @@ public class PlayerServiceTest {
         }
     }
 
+    private static class MessageCallback implements Handler.Callback {
+        @Override
+        public boolean handleMessage(Message msg) {
+            if (msg.what == IPlayer.PLAYER_STATE) {
+                Bundle data = msg.getData();
+                int val = data.getInt(IPlayer.BUNDLE_REQUEST);
+                IPlayer.PlayerRequest request = IPlayer.PlayerRequest.values()[val];
+                val = data.getInt(IPlayer.BUNDLE_STATE);
+                IPlayer.PlayerState state = IPlayer.PlayerState.values()[val];
+                String info = data.getString(IPlayer.BUNDLE_INFO);
+                callback.onNewState(request, state, info);
+                return true;
+            }
+            return false;
+        }
+    }
+
     @ClassRule
     public static final ServiceTestRule mServiceRule = new ServiceTestRule();
 
@@ -93,8 +115,11 @@ public class PlayerServiceTest {
         Intent intent = new Intent(InstrumentationRegistry.getInstrumentation().getTargetContext(), PlayerService.class);
         IBinder binder = mServiceRule.bindService(intent);
         service = ((PlayerService.PlayerBinder) binder).getService();
+        Handler.Callback handlerCallback = new MessageCallback();
+        Looper looper = Looper.getMainLooper();
+        Handler handler = new Handler(looper, handlerCallback);
         callback = new Callback();
-        service.setCallback(callback);
+        service.setHandler(handler);
     }
 
     @Test

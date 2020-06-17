@@ -4,8 +4,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
+
+import androidx.annotation.NonNull;
 
 public class PlayerController {
     private static final String TAG = "PlayerController";
@@ -14,6 +20,8 @@ public class PlayerController {
     private PlayerService.PlayerBinder mBinder;
     private PlayerService mService;
     private PlayerConnection mConnection;
+    private ReplyCallback mReplyCallback;
+    private Handler mReplyHandler;
 
     public PlayerController(IAndPlugCallback callback, Context context) {
         mCallback = callback;
@@ -58,13 +66,34 @@ public class PlayerController {
         return mService;
     }
 
+    private class ReplyCallback implements Handler.Callback {
+        @Override
+        public boolean handleMessage(Message msg) {
+            if (msg.what == IPlayer.PLAYER_STATE) {
+                Bundle data = msg.getData();
+                int val = data.getInt(IPlayer.BUNDLE_REQUEST, 0);
+                IPlayer.PlayerRequest request = IPlayer.PlayerRequest.values()[val];
+                val = data.getInt(IPlayer.BUNDLE_STATE, 0);
+                IPlayer.PlayerState state = IPlayer.PlayerState.values()[val];
+                String info = data.getString(IPlayer.BUNDLE_INFO, "");
+                if (mCallback != null) {
+                    mCallback.onNewState(request, state, info);
+                }
+            }
+            return true;
+        }
+    }
+
     private class PlayerConnection implements ServiceConnection {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mBinder = (PlayerService.PlayerBinder) service;
             mService = mBinder.getService();
             if (mService != null) {
-                mService.setCallback(mCallback);
+                Looper looper = mContext.getMainLooper();
+                mReplyCallback = new ReplyCallback();
+                mReplyHandler = new Handler(looper, mReplyCallback);
+                mService.setHandler(mReplyHandler);
             }
             if (mCallback != null) {
                 mCallback.onServiceConnected();
@@ -78,6 +107,8 @@ public class PlayerController {
             }
             mBinder = null;
             mService = null;
+            mReplyCallback = null;
+            mReplyHandler = null;
         }
 
         @Override

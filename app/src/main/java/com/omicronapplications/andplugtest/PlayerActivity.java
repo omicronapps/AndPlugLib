@@ -148,7 +148,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
     }
 
     @Override
-    public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state) {
+    public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state, String info) {
         String title = mPlayer.getTitle();
         String author = mPlayer.getAuthor();
         String desc = mPlayer.getDesc();
