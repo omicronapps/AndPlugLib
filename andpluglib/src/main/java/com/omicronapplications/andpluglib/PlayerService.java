@@ -63,7 +63,7 @@ public class PlayerService extends Service implements
     private static final String BUNDLE_SONG = "song";
     private static final String BUNDLE_SUBSONG = "subsong";
     private static final String BUNDLE_DEBUGPATH = "path";
-    private static final int WATCHDOG_TIMEOUT = 500;
+    private static final int WATCHDOG_TIMEOUT = 2500;
     private final IBinder mBinder = new PlayerBinder();
     private HandlerThread mMessageThread;
     private MessageCallback mMessageCallback;
@@ -205,17 +205,17 @@ public class PlayerService extends Service implements
                 info = "Not initialized";
             }
             while (mIsRunning && hasSamples) {
-                int writtenSample = -1;
+                int writtenSample = 0;
                 try {
                     playerLock();
                     if (mBit16 && (mBuf16 != null)) {
                         int newSamples = mAdPlayer.oplUpdate16(mBuf16, mSamples, mRepeat);
                         hasSamples = (newSamples > 0);
-                        writtenSample = mTrack.write(mBuf16, 0, newSamples * mChannels);
+                        writtenSample = mTrack.write(mBuf16, 0, mChannels * newSamples);
                     } else if (mBuf8 != null) {
                         int newSamples = mAdPlayer.oplUpdate8(mBuf8, mSamples, mRepeat);
                         hasSamples = (newSamples > 0);
-                        writtenSample = mTrack.write(mBuf8, 0, newSamples * mChannels);
+                        writtenSample = mTrack.write(mBuf8, 0, mChannels * newSamples);
                     }
                     if (Thread.interrupted()) {
                         throw new InterruptedException();
@@ -379,9 +379,9 @@ public class PlayerService extends Service implements
                         mSamples = samples;
                         // Stereo playback requires double amount of samples
                         if (mBit16) {
-                            mBuf16 = new short[2 * mSamples];
+                            mBuf16 = new short[mChannels * mSamples];
                         } else {
-                            mBuf8 = new byte[2 * mSamples];
+                            mBuf8 = new byte[mChannels * mSamples];
                         }
                     } finally {
                         messageUnlock();

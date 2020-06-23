@@ -132,7 +132,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         File f = fileFromAssets(fileName);
         if (mPlayer != null) {
             mPlayer.debugPath(getDebugDir(true));
-            mPlayer.initialize(44100, true, false, true, false, 32, 1024);
+            mPlayer.initialize(44100, true, false, true, false, 1, 131072);
             mPlayer.setRepeat(true);
         }
     }

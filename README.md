@@ -355,6 +355,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.1.0 Player service refactored
 - 1.2.0 Updated to AdPlug v2.3.2 and libbinio v1.5, migrated to AndroidX
 - 1.3.0 Updated to AdPlug v2.3.3, improved error handling
+- 1.4.0 Fixed bug in error reporting
 
 ## License
 
