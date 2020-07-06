@@ -9,8 +9,13 @@ AndPlug::~AndPlug() {
     Unload();
 }
 
-void AndPlug::Load(const char* song, Copl* opl) {
-    m_p.reset(CAdPlug::factory(std::string(song), opl));
+bool AndPlug::Load(const char* song, Copl* opl) {
+    CPlayer* player = CAdPlug::factory(std::string(song), opl);
+    m_p.reset(player);
+    if (player == nullptr) {
+        LOGW(LOG_TAG, "Load: failed to load song: %s", song);
+    }
+    return (player != nullptr);
 }
 
 void AndPlug::Unload() {

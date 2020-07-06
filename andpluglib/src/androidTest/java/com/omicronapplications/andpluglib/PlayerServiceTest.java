@@ -133,10 +133,10 @@ public class PlayerServiceTest {
     @Test
     public void testDuplicateCalls() throws TimeoutException {
         // Multiple setups
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
 
         // Multiple loads
         File f = fileFromResources("Super_Nova", ".d00", raw.super_nova_d00);
@@ -175,7 +175,7 @@ public class PlayerServiceTest {
     public void testLoadAndPlay() throws TimeoutException {
         // Setup
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
@@ -208,7 +208,7 @@ public class PlayerServiceTest {
     @Test
     public void testMultipleSongs() throws TimeoutException {
         // Setup
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
@@ -299,7 +299,7 @@ public class PlayerServiceTest {
     @Test
     public void testPlaybackControls() throws TimeoutException {
         // Setup
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
@@ -347,7 +347,7 @@ public class PlayerServiceTest {
     @Test
     public void testSongNotLoaded() throws TimeoutException {
         // Setup
-        service.initialize(44100, true, false, true, false, 32, 1024);
+        service.initialize(44100, true, false, true, false, 131072, 0);
         waitForCallback();
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 

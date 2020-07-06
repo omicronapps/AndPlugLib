@@ -9,7 +9,7 @@ class AndPlug {
 public:
     AndPlug();
     ~AndPlug();
-    void Load(const char* song, Copl* opl);
+    bool Load(const char* song, Copl* opl);
     void Unload();
     bool isLoaded();
 

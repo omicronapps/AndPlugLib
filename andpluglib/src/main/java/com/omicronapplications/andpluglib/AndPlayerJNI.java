@@ -3,7 +3,7 @@ package com.omicronapplications.andpluglib;
 class AndPlayerJNI {
     public native void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right);
     public native void uninitialize();
-    public native void load(String str);
+    public native boolean load(String str);
     public native void unload();
     public native boolean isLoaded();
 
@@ -12,8 +12,8 @@ class AndPlayerJNI {
     public native int oplGetchip();
     public native void oplInit();
     public native int oplGettype();
-    public native int oplUpdate16(short[] buf, int samples, boolean repeat);
-    public native int oplUpdate8(byte[] buf, int samples, boolean repeat);
+    public native int oplUpdate16(short[] buf, int size, boolean repeat);
+    public native int oplUpdate8(byte[] buf, int size, boolean repeat);
     public native void oplDebugPath(String str);
 
     public native String plugGetversion();

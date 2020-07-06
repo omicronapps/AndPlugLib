@@ -17,6 +17,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
+import static com.omicronapplications.andpluglib.IPlayer.PlayerState.ERROR;
+import static com.omicronapplications.andpluglib.IPlayer.PlayerState.FATAL;
 import static com.omicronapplications.andpluglib.IPlayer.PlayerState.LOADED;
 
 public class PlayerActivity extends Activity implements IAndPlugCallback, View.OnClickListener {
@@ -132,7 +134,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         File f = fileFromAssets(fileName);
         if (mPlayer != null) {
             mPlayer.debugPath(getDebugDir(true));
-            mPlayer.initialize(44100, true, false, true, false, 1, 131072);
+            mPlayer.initialize(48000, true, false, true, false, 131072, 0);
             mPlayer.setRepeat(true);
         }
     }
@@ -154,6 +156,10 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         String desc = mPlayer.getDesc();
         if (state == LOADED) {
             Log.i(TAG, "title: " + title + ", author: " + author + ", desc: " + desc);
+        } else if (state == ERROR) {
+            Log.e(TAG, "error: " + info);
+        } else if (state == FATAL) {
+            Log.e(TAG, "fatal: " + info);
         }
     }
 
@@ -168,7 +174,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
                 break;
             case R.id.initialize_button:
                 if (mPlayer != null) {
-                    mPlayer.initialize(44100, true, false, true, false, 32, 1024);
+                    mPlayer.initialize(48000, true, false, true, false, 131072, 0);
                     mPlayer.setRepeat(true);
                 }
                 break;

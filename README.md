@@ -130,7 +130,7 @@ Returns a reference to a `PlayerService` instance. Only valid between `onService
 
 #### initialize
 
-```void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int bufferCount, int samples)```
+```void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int buffers, int overhead)```
 
 Create native AdPlug instance and initialize `AudioTrack`. Confirmed initialized if `onNewState()` callback returns `PlayerState.CREATED`.
 
@@ -140,8 +140,8 @@ Arguments:
 - `usestereo` - true: stereo, false: mono
 - `left` - copy left channel data to right channel if left == true and right == false
 - `right` - copy right channel data to left channel if left == false and right == true
-- `bufferCount` - buffer count
-- `samples` - samples pre buffer (bytes)
+- `buffers` - AdPlug/AudioTrack buffer size (bytes)
+- `overhead` - AudioTrack additional buffers
 
 #### uninitialize
 
@@ -182,6 +182,12 @@ Pause playback. Song playback paused once `onNewState()` callback returns `Playe
 
 Stop playback. Song playback stopped once `onNewState()` callback returns `PlayerState.STOPPED`.
 
+#### seek
+
+```void seek(long ms)```
+
+Seek to new position in song.
+
 #### rewind
 
 ```void rewind(int subsong)```
@@ -211,6 +217,12 @@ Return whether current song is on repeat.
 ```String getSong()```
 
 Return song file name.
+
+#### getSonglength
+
+```long getSonglength(int subsong)```
+
+Return length of song in ms.
 
 #### getTitle
 
@@ -326,7 +338,7 @@ Retrieve `IPlayer` object on `IAndPlugCallback.onServiceConnected()` callback, a
 import com.omicronapplications.andpluglib.IPlayer;
 
 IPlayer player = mController.getService();
-player.initialize(44100, true, false, true, false, 32, 1024);
+player.initialize(44100, true, false, true, false, 131072, 0);
 player.load("the alibi.d00");
 player.play();
 ```
@@ -356,6 +368,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.2.0 Updated to AdPlug v2.3.2 and libbinio v1.5, migrated to AndroidX
 - 1.3.0 Updated to AdPlug v2.3.3, improved error handling
 - 1.4.0 Fixed bug in error reporting
+- 1.5.0 Improvements to buffer management and error reporting
 
 ## License
 

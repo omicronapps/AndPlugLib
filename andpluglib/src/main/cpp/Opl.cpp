@@ -28,15 +28,15 @@ void Opl::Uninitialize() {
     m_plug.reset(nullptr);
 }
 
-CPlayer* Opl::Load(const char* song) {
-    CPlayer* p = nullptr;
+bool Opl::Load(const char* song) {
+    bool isLoaded = false;
     if (m_plug != nullptr && m_opl != nullptr) {
-        m_plug->Load(song, m_opl.get());
+        isLoaded = m_plug->Load(song, m_opl.get());
         OpenFile();
     } else {
         LOGW(LOG_TAG, "Load: can't load song %s", song);
     }
-    return p;
+    return isLoaded;
 }
 
 void Opl::Unload() {
@@ -102,76 +102,48 @@ Copl::ChipType Opl::GetType() {
     return currType;
 }
 
-unsigned long Opl::Update16(short *buf, int samples, bool repeat) {
-    if (m_plug == nullptr || (!m_plug->Update() && !repeat) || m_opl == nullptr) {
-        return 0;
+int Opl::Update(void *buf, int size, bool repeat) {
+    if (m_plug == nullptr || m_opl == nullptr || buf == nullptr || size <= 0) {
+        LOGW(LOG_TAG, "Update: illegal arguments: %p, %p, %p, %d", m_plug.get(), m_opl.get(), buf, size);
+        return OPL_ERROR_ARGS;
+    }
+
+    if (!m_plug->Update() && !repeat) {
+        return OPL_ERROR_OK;
     }
 
     float refresh = m_plug->GetRefresh();
     if (refresh <= 0.0) {
-        LOGW(LOG_TAG, "Update16: illegal refresh rate");
-        return 0;
-    }
-    unsigned long towrite = (unsigned long) (m_rate / refresh);
-    unsigned long write = 0, newsamples = 0;
-    while (towrite) {
-        write = (towrite > samples) ? samples : towrite;
-        m_opl->update(buf, static_cast<int>(write));
-        newsamples += write;
-        towrite -= write;
+        LOGW(LOG_TAG, "Update: illegal refresh rate: %f", refresh);
+        return OPL_ERROR_RATE;
     }
 
-    if (m_usestereo && (newsamples <= samples)) {
-        if (m_left && !m_right) {
-            for (int i = 0; i < newsamples * 2; i = i + 2) {
-                buf[i + 1] = buf[i];
-            }
-        } else if (!m_left && m_right) {
-            for (int i = 0; i < newsamples * 2; i = i + 2) {
-                buf[i] = buf[i + 1];
-            }
+    int samples = (int) (m_rate / refresh);
+    if (samples > size) {
+        LOGW(LOG_TAG, "Update: insufficient buffer size: %d > %d", samples, size);
+        return OPL_ERROR_BUFFER;
+    }
+    m_opl->update((short*) buf, samples);
+
+    if (m_usestereo && (m_left != m_right)) {
+        if ((2 * samples) > size) {
+            LOGW(LOG_TAG, "Update: insufficient buffer size for stereo: %d > %d", 2 * samples, size);
+            return OPL_ERROR_STEREO;
+        }
+        if (m_bit16) {
+            CopyStereo16((short*) buf, samples);
+        } else {
+            CopyStereo8((char*) buf, samples);
         }
     }
 
-    WriteFile16(buf, newsamples);
-
-    return newsamples;
-}
-
-unsigned long Opl::Update8(char *buf, int samples, bool repeat) {
-    if (m_plug == nullptr || (!m_plug->Update() && !repeat) || m_opl == nullptr) {
-        return 0;
+    if (m_bit16) {
+        WriteFile16((short*) buf, samples);
+    } else {
+        WriteFile8((char*) buf, samples);
     }
 
-    float refresh = m_plug->GetRefresh();
-    if (refresh <= 0.0) {
-        LOGW(LOG_TAG, "Update8: illegal refresh rate");
-        return 0;
-    }
-    unsigned long towrite = (unsigned long) (m_rate / refresh);
-    unsigned long write = 0, newsamples = 0;
-    while (towrite) {
-        write = (towrite > samples) ? samples : towrite;
-        m_opl->update((short*) buf, static_cast<int>(write));
-        newsamples += write;
-        towrite -= write;
-    }
-
-    if (m_usestereo && (newsamples <= samples)) {
-        if (m_left && !m_right) {
-            for (int i = 0; i < newsamples * 2; i = i + 2) {
-                buf[i + 1] = buf[i];
-            }
-        } else if (!m_left && m_right) {
-            for (int i = 0; i < newsamples * 2; i = i + 2) {
-                buf[i] = buf[i + 1];
-            }
-        }
-    }
-
-    WriteFile8(buf, newsamples);
-
-    return newsamples;
+    return samples;
 }
 
 void Opl::DebugPath(const char* path) {
@@ -197,13 +169,37 @@ void Opl::CloseFile() {
     }
 }
 
-void Opl::WriteFile16(short *buf, unsigned long samples) {
+void Opl::CopyStereo16(short* buf, int samples) {
+    if (m_left && !m_right) {
+        for (int i = 0; i < (2 * samples); i = i + 2) {
+            buf[i + 1] = buf[i];
+        }
+    } else if (!m_left && m_right) {
+        for (int i = 0; i < (2 * samples); i = i + 2) {
+            buf[i] = buf[i + 1];
+        }
+    }
+}
+
+void Opl::CopyStereo8(char* buf, int samples) {
+    if (m_left && !m_right) {
+        for (int i = 0; i < (2 * samples); i = i + 2) {
+            buf[i + 1] = buf[i];
+        }
+    } else if (!m_left && m_right) {
+        for (int i = 0; i < (2 * samples); i = i + 2) {
+            buf[i] = buf[i + 1];
+        }
+    }
+}
+
+void Opl::WriteFile16(short *buf, int samples) {
     if (buf != nullptr && samples > 0 && m_stream != nullptr) {
         fwrite(buf, sizeof(short), (size_t) samples, m_stream);
     }
 }
 
-void Opl::WriteFile8(char *buf, unsigned long samples) {
+void Opl::WriteFile8(char *buf, int samples) {
     if (buf != nullptr && samples > 0 && m_stream != nullptr) {
         fwrite(buf, sizeof(char), (size_t) samples, m_stream);
     }

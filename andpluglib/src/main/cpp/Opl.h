@@ -5,13 +5,19 @@
 #include <string>
 #include "AndPlug.h"
 
+#define OPL_ERROR_OK 0
+#define OPL_ERROR_ARGS -1
+#define OPL_ERROR_RATE -2
+#define OPL_ERROR_BUFFER -3
+#define OPL_ERROR_STEREO -4
+
 class Opl {
 public:
     Opl();
     ~Opl();
     void Initialize(int rate, bool bit16, bool usestereo, bool left, bool right);
     void Uninitialize();
-    CPlayer* Load(const char* song);
+    bool Load(const char* song);
     void Unload();
     bool isLoaded();
     AndPlug* GetPlug();
@@ -22,8 +28,7 @@ public:
     int GetChip(); // returns current OPL chip
     void Init(void); // reinitialize OPL chip(s)
     Copl::ChipType GetType();
-    unsigned long Update16(short *buf, int samples, bool repeat);
-    unsigned long Update8(char *buf, int samples, bool repeat);
+    int Update(void *buf, int size, bool repeat);
 
 private:
     int m_rate;
@@ -40,8 +45,10 @@ public:
 private:
     void OpenFile();
     void CloseFile();
-    void WriteFile16(short *buf, unsigned long samples);
-    void WriteFile8(char *buf, unsigned long samples);
+    void CopyStereo16(short* buf, int samples);
+    void CopyStereo8(char* buf, int samples);
+    void WriteFile16(short *buf, int samples);
+    void WriteFile8(char *buf, int samples);
     std::string m_path;
     FILE* m_stream;
     int m_FileIndex;

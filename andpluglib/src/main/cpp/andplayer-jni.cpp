@@ -33,10 +33,11 @@ JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_unin
     opl.Uninitialize();
 }
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_load(JNIEnv *env, jobject thiz, jstring str) {
+JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_load(JNIEnv *env, jobject thiz, jstring str) {
     const char *song = env->GetStringUTFChars(str, 0);
-    opl.Load(song);
+    bool isLoaded = opl.Load(song);
     env->ReleaseStringUTFChars(str, song);
+    return isLoaded;
 }
 
 JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_unload(JNIEnv* env, jobject thiz) {
@@ -72,30 +73,30 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplG
     return opl.GetType();
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate16(JNIEnv* env, jobject thiz, jshortArray array, jint samples, jboolean repeat) {
-    if ((array == 0) || (samples == 0)) {
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate16(JNIEnv* env, jobject thiz, jshortArray array, jint size, jboolean repeat) {
+    if (array == nullptr) {
         return 0;
     }
-    unsigned long newsamples = 0;
+    int samples = 0;
     jshort* buf = env->GetShortArrayElements(array, 0);
 
-    newsamples = opl.Opl::Update16(buf, samples, repeat);
+    samples = opl.Opl::Update(buf, size, repeat);
     env->ReleaseShortArrayElements(array, buf, 0);
 
-    return (jint) (newsamples & 0xFFFFFFFF);
+    return samples;
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate8(JNIEnv* env, jobject thiz, jbyteArray array, jint samples, jboolean repeat) {
-    if ((array == 0) || (samples == 0)) {
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate8(JNIEnv* env, jobject thiz, jbyteArray array, jint size, jboolean repeat) {
+    if (array == nullptr) {
         return 0;
     }
-    unsigned long newsamples = 0;
+    int samples = 0;
     jbyte* buf = env->GetByteArrayElements(array, 0);
 
-    newsamples = opl.Opl::Update8((char*) buf, samples, repeat);
+    samples = opl.Opl::Update(buf, size, repeat);
     env->ReleaseByteArrayElements(array, buf, 0);
 
-    return (jint) (newsamples & 0xFFFFFFFF);
+    return samples;
 }
 
 JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplDebugPath(JNIEnv* env, jobject thiz, jstring str){
@@ -128,13 +129,13 @@ JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plu
     long length = -1;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
-        length = plug->SongLength(subsong);
+        length = (long) plug->SongLength(subsong);
     }
     return length;
 }
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettype(JNIEnv* env, jobject thiz) {
-    const char* type = NULL;
+    const char* type = nullptr;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
         type = plug->GetType().c_str();
@@ -143,7 +144,7 @@ JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_p
 }
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGettitle(JNIEnv* env, jobject thiz) {
-    const char* title = NULL;
+    const char* title = nullptr;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
         title = plug->GetTitle().c_str();
@@ -152,7 +153,7 @@ JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_p
 }
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetauthor(JNIEnv* env, jobject thiz) {
-    const char* author = NULL;
+    const char* author = nullptr;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
         author = plug->GetAuthor().c_str();
@@ -161,7 +162,7 @@ JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_p
 }
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetdesc(JNIEnv* env, jobject thiz) {
-    const char* desc = NULL;
+    const char* desc = nullptr;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
         desc = plug->GetDesc().c_str();
@@ -173,7 +174,7 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plug
     int numsubsongs = -1;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
-        numsubsongs = plug->GetSubsongs();
+        numsubsongs = (int) plug->GetSubsongs();
     }
     return numsubsongs;
 }
@@ -182,7 +183,7 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plug
     int cursubsong = -1;
     AndPlug* plug = opl.GetPlug();
     if (plug != nullptr && plug->isLoaded()) {
-        cursubsong = plug->GetSubsong();
+        cursubsong = (int) plug->GetSubsong();
     }
     return cursubsong;
 }

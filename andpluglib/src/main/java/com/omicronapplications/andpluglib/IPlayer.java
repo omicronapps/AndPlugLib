@@ -6,17 +6,19 @@ public interface IPlayer {
     String BUNDLE_STATE = "state";
     String BUNDLE_INFO = "info";
 
-    void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int bufferCount, int samples);
+    void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int buffers, int overhead);
     void uninitialize();
     void load(String song);
     void unload();
     void play();
     void pause();
     void stop();
+    void seek(long ms);
     void rewind(int subsong);
     void setRepeat(boolean repeat);
     boolean getRepeat();
     String getSong();
+    long getSonglength(int subsong);
     String getTitle();
     String getAuthor();
     String getDesc();
@@ -28,15 +30,14 @@ public interface IPlayer {
     enum PlayerRequest {
         SERVICE(0),
         INITIALIZE(1),
-        PLAY(1),
-        LOAD(2),
-        RUN(3),
-        PAUSE(4),
-        STOP(5),
-        UNLOAD(6),
-        UNINITIALIZE(7),
-        DESTROY(8),
-        WATCHDOG(9);
+        PLAY(2),
+        LOAD(3),
+        RUN(4),
+        PAUSE(5),
+        STOP(6),
+        UNLOAD(7),
+        UNINITIALIZE(8),
+        DESTROY(9);
         PlayerRequest(int val) { this.val = val; }
         int toInt() { return val; }
         private int val;
