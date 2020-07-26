@@ -26,7 +26,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import static android.media.AudioAttributes.CONTENT_TYPE_MUSIC;
 import static android.media.AudioAttributes.USAGE_MEDIA;
 import static android.media.AudioFormat.ENCODING_PCM_16BIT;
-import static android.media.AudioFormat.ENCODING_PCM_8BIT;
 import static android.media.AudioManager.AUDIOFOCUS_GAIN;
 import static android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT;
 import static android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE;
@@ -53,13 +52,12 @@ public class PlayerService extends Service implements
     private static final int PLAYER_SEEK = 9;
     private static final int PLAYER_REWIND = 10;
     private static final int DEBUG_SETPATH = 11;
+    private static final String BUNDLE_EMU = "emu";
     private static final String BUNDLE_RATE = "rate";
-    private static final String BUNDLE_BIT16 = "bit16";
     private static final String BUNDLE_USESTEREO = "usestereo";
     private static final String BUNDLE_LEFT = "left";
     private static final String BUNDLE_RIGHT = "right";
     private static final String BUNDLE_BUFFERS = "buffers";
-    private static final String BUNDLE_OVERHEAD = "overhead";
     private static final String BUNDLE_SONG = "song";
     private static final String BUNDLE_SEEK = "seek";
     private static final String BUNDLE_SUBSONG = "subsong";
@@ -89,9 +87,7 @@ public class PlayerService extends Service implements
     private AudioTrack mTrack;
     private volatile boolean mIsRunning;
     private volatile boolean mMessageRequest;
-    private short[] mBuf16;
-    private byte[] mBuf8;
-    private boolean mBit16;
+    private short[] mBuf;
     private int mChannels;
     private int mBuffers;
 
@@ -171,12 +167,6 @@ public class PlayerService extends Service implements
                 case -2:
                     errorString = "illegal refresh rate";
                     break;
-                case -3:
-                    errorString = "insufficient buffer size";
-                    break;
-                case -4:
-                    errorString = "insufficient buffer size for stereo";
-                    break;
                 default:
                     break;
             }
@@ -189,11 +179,11 @@ public class PlayerService extends Service implements
             boolean hasSamples = true;
             PlayerState state = PlayerState.DEFAULT;
             String info = null;
-            if (mTrack == null || (mBuf16 == null && mBuf8 == null) || !mAdPlayer.isLoaded()) {
-                Log.w(TAG, "run: not initialized: mTrack:" + mTrack + ", mBuf:" + mBuf16 + ", mBuf8:" + mBuf8 + ", isLoaded:" + mAdPlayer.isLoaded());
+            if (mTrack == null || mBuf == null|| !mAdPlayer.isLoaded()) {
+                Log.w(TAG, "run: not initialized: mTrack:" + mTrack + ", mBuf:" + mBuf + ", isLoaded:" + mAdPlayer.isLoaded());
                 hasSamples = false;
                 state = PlayerState.ERROR;
-                info = "Player not initialized: " + mTrack + "/" + mBuf16 + "/" + mBuf8 + "/" + mAdPlayer.isLoaded();
+                info = "Player not initialized: " + mTrack + "/" + mBuf + mAdPlayer.isLoaded();
             }
             while (mIsRunning && hasSamples) {
 //                boolean dataWritten = false;
@@ -201,17 +191,11 @@ public class PlayerService extends Service implements
                 int writtenSamples = 0;
                 try {
                     playerLock();
-                    if (mBit16 && (mBuf16 != null)) {
-                        samples = mAdPlayer.oplUpdate16(mBuf16, mChannels * mBuffers, mRepeat);
+                    if (mBuf != null) {
+                        samples = mAdPlayer.oplUpdate(mBuf, mBuffers, mRepeat);
                         hasSamples = (samples > 0);
                         if (hasSamples) {
-                            writtenSamples = mTrack.write(mBuf16, 0, mChannels * samples);
-                        }
-                    } else if (mBuf8 != null) {
-                        samples = mAdPlayer.oplUpdate8(mBuf8, mChannels * mBuffers, mRepeat);
-                        hasSamples = (samples > 0);
-                        if (hasSamples) {
-                            writtenSamples = mTrack.write(mBuf8, 0, mChannels * samples);
+                            writtenSamples = mTrack.write(mBuf, 0, mChannels * samples);
                         }
                     }
                     if (Thread.interrupted()) {
@@ -320,8 +304,7 @@ public class PlayerService extends Service implements
                 mTrack.release();
                 mTrack = null;
             }
-            mBuf16 = null;
-            mBuf8 = null;
+            mBuf = null;
         }
 
         private void messageLock() {
@@ -342,30 +325,34 @@ public class PlayerService extends Service implements
             switch (msg.what) {
                 case PLAYER_INITIALIZE:
                     Bundle data = msg.getData();
+                    int emu = data.getInt(BUNDLE_EMU);
                     int rate = data.getInt(BUNDLE_RATE);
-                    boolean bit16 = data.getBoolean(BUNDLE_BIT16);
                     boolean usestereo = data.getBoolean(BUNDLE_USESTEREO);
+                    if (!usestereo && emu == Opl.OPL_CNEMU.toInt()) {
+                        usestereo = true;
+                    }
                     boolean left = data.getBoolean(BUNDLE_LEFT);
                     boolean right = data.getBoolean(BUNDLE_RIGHT);
                     int buffers = data.getInt(BUNDLE_BUFFERS);
-                    int overhead = data.getInt(BUNDLE_OVERHEAD);
-                    if (rate <= 0 || buffers <= 0 || overhead < 0) {
-                        Log.e(TAG, "initialize: illegal player configuration, rate:" + rate + ", buffers:" + buffers + ", overhead:" + overhead);
-                        setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize: " + rate + "/" + buffers + "/" + overhead);
+                    if (emu < 0 || emu > 4 || rate <= 0 || buffers <= 0) {
+                        Log.e(TAG, "initialize: illegal player configuration, emu: " + emu + ", rate:" + rate + ", buffers:" + buffers);
+                        setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize: " + emu + "/" + rate + "/" + buffers);
                         break;
                     }
                     try {
                         messageLock();
                         shutdownPlayer();
                         // Create native player instance
-                        mAdPlayer.initialize(rate, bit16, usestereo, left, right);
+                        mAdPlayer.initialize(emu, rate, usestereo, left, right);
                         // Create audio player
                         int channelConfig = usestereo ? AudioFormat.CHANNEL_OUT_STEREO : AudioFormat.CHANNEL_OUT_MONO;
-                        int audioFormat = bit16 ? ENCODING_PCM_16BIT : ENCODING_PCM_8BIT;
-                        int bufferSizeInBytes = buffers + overhead;
+                        int audioFormat = ENCODING_PCM_16BIT;
+                        int bufferSizeInBytes = AudioTrack.getMinBufferSize(rate, channelConfig, audioFormat);
+                        bufferSizeInBytes = Math.max(bufferSizeInBytes, buffers);
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                             mTrack = new AudioTrack.Builder().
-                                    setAudioAttributes(new AudioAttributes.Builder().
+                                    setAudioAttributes(new AudioAttributes.
+                                            Builder().
                                             setContentType(CONTENT_TYPE_MUSIC).
                                             setLegacyStreamType(STREAM_MUSIC).
                                             setUsage(USAGE_MEDIA).
@@ -382,15 +369,10 @@ public class PlayerService extends Service implements
                         } else {
                             mTrack = new AudioTrack(STREAM_MUSIC, rate, channelConfig, audioFormat, bufferSizeInBytes, MODE_STREAM);
                         }
-                        mBit16 = bit16;
                         mChannels = usestereo ? 2 : 1;
                         mBuffers = buffers;
                         // Stereo playback requires double amount of samples
-                        if (mBit16) {
-                            mBuf16 = new short[mChannels * mBuffers];
-                        } else {
-                            mBuf8 = new byte[mChannels * mBuffers];
-                        }
+                        mBuf = new short[mChannels * mBuffers];
                     } finally {
                         messageUnlock();
                     }
@@ -665,15 +647,14 @@ public class PlayerService extends Service implements
     }
 
     @Override
-    public void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int buffers, int overhead) {
+    public void initialize(Opl emu, int rate, boolean usestereo, boolean left, boolean right, int buffers) {
         Bundle data = new Bundle();
+        data.putInt(BUNDLE_EMU, emu.toInt());
         data.putInt(BUNDLE_RATE, rate);
-        data.putBoolean(BUNDLE_BIT16, bit16);
         data.putBoolean(BUNDLE_USESTEREO, usestereo);
         data.putBoolean(BUNDLE_LEFT, left);
         data.putBoolean(BUNDLE_RIGHT, right);
         data.putInt(BUNDLE_BUFFERS, buffers);
-        data.putInt(BUNDLE_OVERHEAD, overhead);
         sendMessageToHandler(PLAYER_INITIALIZE, data);
     }
 

@@ -130,18 +130,17 @@ Returns a reference to a `PlayerService` instance. Only valid between `onService
 
 #### initialize
 
-```void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int buffers, int overhead)```
+```void initialize(Opl emu, int rate, boolean usestereo, boolean left, boolean right, int buffers)```
 
 Create native AdPlug instance and initialize `AudioTrack`. Confirmed initialized if `onNewState()` callback returns `PlayerState.CREATED`.
 
 Arguments:
+- `emu` - OPL emulator
 - `rate` - sample rate (Hz)
-- `bit16` - true: 16 bit resolution, false: 8 bit resolution
 - `usestereo` - true: stereo, false: mono
 - `left` - copy left channel data to right channel if left == true and right == false
 - `right` - copy right channel data to left channel if left == false and right == true
-- `buffers` - AdPlug/AudioTrack buffer size (bytes)
-- `overhead` - AudioTrack additional buffers
+- `buffers` - AdPlug buffer size (bytes)
 
 #### uninitialize
 
@@ -338,7 +337,7 @@ Retrieve `IPlayer` object on `IAndPlugCallback.onServiceConnected()` callback, a
 import com.omicronapplications.andpluglib.IPlayer;
 
 IPlayer player = mController.getService();
-player.initialize(44100, true, false, true, false, 131072, 0);
+player.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, false, 4096);
 player.load("the alibi.d00");
 player.play();
 ```
@@ -369,6 +368,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.3.0 Updated to AdPlug v2.3.3, improved error handling
 - 1.4.0 Fixed bug in error reporting
 - 1.5.0 Improvements to buffer management and error reporting
+- 1.6.0 Improved lower latency player, support for choice of OPL emulator
 
 ## License
 

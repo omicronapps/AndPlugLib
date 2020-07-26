@@ -6,7 +6,7 @@ public interface IPlayer {
     String BUNDLE_STATE = "state";
     String BUNDLE_INFO = "info";
 
-    void initialize(int rate, boolean bit16, boolean usestereo, boolean left, boolean right, int buffers, int overhead);
+    void initialize(Opl emu, int rate, boolean usestereo, boolean left, boolean right, int buffers);
     void uninitialize();
     void load(String song);
     void unload();
@@ -54,6 +54,17 @@ public interface IPlayer {
         ERROR(7),
         FATAL(8);
         PlayerState(int val) { this.val = val; }
+        int toInt() { return val; }
+        private int val;
+    }
+
+    enum Opl {
+        OPL_CEMU(0), // Default OPL emulator
+        OPL_CKEMU(1), // Ken Silverman's OPL2 emulator
+        OPL_CNEMU(2), // Nuked OPL3 emulator
+        OPL_CTEMU(3), // Tatsuyuki Satoh's OPL2 emulator
+        OPL_CWEMU(4); // DOSBox OPL3 emulator
+        Opl(int val) { this.val = val; }
         int toInt() { return val; }
         private int val;
     }

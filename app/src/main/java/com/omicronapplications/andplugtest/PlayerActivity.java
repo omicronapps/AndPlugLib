@@ -134,8 +134,8 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         File f = fileFromAssets(fileName);
         if (mPlayer != null) {
             mPlayer.debugPath(getDebugDir(true));
-            mPlayer.initialize(48000, true, false, true, false, 131072, 0);
-            mPlayer.setRepeat(true);
+            mPlayer.initialize(IPlayer.Opl.OPL_CEMU, 48000, false, false, false, 1024);
+            mPlayer.setRepeat(false);
         }
     }
 
@@ -174,7 +174,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
                 break;
             case R.id.initialize_button:
                 if (mPlayer != null) {
-                    mPlayer.initialize(48000, true, false, true, false, 131072, 0);
+                    mPlayer.initialize(IPlayer.Opl.OPL_CEMU, 48000, false, false, false, 1024);
                     mPlayer.setRepeat(true);
                 }
                 break;

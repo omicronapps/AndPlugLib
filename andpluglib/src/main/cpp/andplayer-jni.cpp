@@ -25,8 +25,8 @@ static jstring getJstring(JNIEnv *env, const char *bytes) {
 extern "C"
 {
 
-JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_initialize(JNIEnv* env, jobject thiz, jint rate, jboolean bit16, jboolean usestereo, jboolean left, jboolean right) {
-    opl.Initialize(rate, bit16, usestereo, left, right);
+JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_initialize(JNIEnv* env, jobject thiz, jint emu, jint rate, jboolean usestereo, jboolean left, jboolean right) {
+    opl.Initialize(emu, rate, usestereo, left, right);
 }
 
 JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_uninitialize(JNIEnv* env, jobject thiz) {
@@ -73,7 +73,7 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplG
     return opl.GetType();
 }
 
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate16(JNIEnv* env, jobject thiz, jshortArray array, jint size, jboolean repeat) {
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate(JNIEnv* env, jobject thiz, jshortArray array, jint size, jboolean repeat) {
     if (array == nullptr) {
         return 0;
     }
@@ -82,19 +82,6 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplU
 
     samples = opl.Opl::Update(buf, size, repeat);
     env->ReleaseShortArrayElements(array, buf, 0);
-
-    return samples;
-}
-
-JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplUpdate8(JNIEnv* env, jobject thiz, jbyteArray array, jint size, jboolean repeat) {
-    if (array == nullptr) {
-        return 0;
-    }
-    int samples = 0;
-    jbyte* buf = env->GetByteArrayElements(array, 0);
-
-    samples = opl.Opl::Update(buf, size, repeat);
-    env->ReleaseByteArrayElements(array, buf, 0);
 
     return samples;
 }

@@ -1,9 +1,14 @@
 #include "Opl.h"
 #include "common.h"
+#include "emuopl.h"
+#include "kemuopl.h"
+#include "nemuopl.h"
+#include "temuopl.h"
+#include "wemuopl.h"
 
 #define LOG_TAG "Opl"
 
-Opl::Opl() : m_stream(nullptr), m_FileIndex(0) {
+Opl::Opl() : m_rate(0), m_usestereo(false), m_left(false), m_right(false), m_previous(0.0), m_stream(nullptr), m_file_index(0) {
     m_path.clear();
 }
 
@@ -12,13 +17,29 @@ Opl::~Opl() {
     m_path.clear();
 }
 
-void Opl::Initialize(int rate, bool bit16, bool usestereo, bool left, bool right) {
+void Opl::Initialize(int emu, int rate, bool usestereo, bool left, bool right) {
     m_rate = rate;
-    m_bit16 = bit16;
     m_usestereo = usestereo;
     m_left = left;
     m_right = right;
-    m_opl.reset(new CEmuopl(rate, bit16, usestereo));
+    switch (emu) {
+        case OPL_CEMU:
+        default:
+            m_opl.reset(new CEmuopl(rate, true, usestereo));
+            break;
+        case OPL_CKEMU:
+            m_opl.reset(new CKemuopl(rate, true, usestereo));
+            break;
+        case OPL_CNEMU:
+            m_opl.reset(new CNemuopl(rate));
+            break;
+        case OPL_CTEMU:
+            m_opl.reset(new CTemuopl(rate, true, usestereo));
+            break;
+        case OPL_CWEMU:
+            m_opl.reset(new CWemuopl(rate, true, usestereo));
+           break;
+    }
     m_plug.reset(new AndPlug());
 }
 
@@ -102,48 +123,61 @@ Copl::ChipType Opl::GetType() {
     return currType;
 }
 
-int Opl::Update(void *buf, int size, bool repeat) {
+int Opl::Update(void* buf, int size, bool repeat) {
+    static long total_ = 0;
+    short* buf_offset = (short*) buf;
+    float sampled_count = m_previous;
+    int count = (int) sampled_count;
+    float remain = 0.0;
     if (m_plug == nullptr || m_opl == nullptr || buf == nullptr || size <= 0) {
         LOGW(LOG_TAG, "Update: illegal arguments: %p, %p, %p, %d", m_plug.get(), m_opl.get(), buf, size);
         return OPL_ERROR_ARGS;
     }
 
-    if (!m_plug->Update() && !repeat) {
-        return OPL_ERROR_OK;
+    if (count > size) {
+        count = size;
+    }
+    if (count > 0) {
+        m_opl->update((short*) buf_offset, count);
+        PostProcess(buf_offset, count);
+        buf_offset += count * (m_usestereo ? 2: 1);
+        m_previous = 0.0;
+        remain = sampled_count - (float) count;
     }
 
-    float refresh = m_plug->GetRefresh();
-    if (refresh <= 0.0) {
-        LOGW(LOG_TAG, "Update: illegal refresh rate: %f", refresh);
-        return OPL_ERROR_RATE;
-    }
-
-    int samples = (int) (m_rate / refresh);
-    if (samples > size) {
-        LOGW(LOG_TAG, "Update: insufficient buffer size: %d > %d", samples, size);
-        return OPL_ERROR_BUFFER;
-    }
-    m_opl->update((short*) buf, samples);
-
-    if (m_usestereo && (m_left != m_right)) {
-        if ((2 * samples) > size) {
-            LOGW(LOG_TAG, "Update: insufficient buffer size for stereo: %d > %d", 2 * samples, size);
-            return OPL_ERROR_STEREO;
+    while (count < size) {
+        if (!m_plug->Update() && !repeat) {
+            if (count > 0) {
+                m_opl->update((short*) buf, count);
+                PostProcess(buf, count);
+            }
+            break;
         }
-        if (m_bit16) {
-            CopyStereo16((short*) buf, samples);
-        } else {
-            CopyStereo8((char*) buf, samples);
+        float refresh = m_plug->GetRefresh();
+        if (refresh <= 0.0) {
+            LOGW(LOG_TAG, "Update: illegal refresh rate: %f", refresh);
+            return OPL_ERROR_RATE;
         }
+        float refresh_samples = ((float) m_rate) / refresh;
+        sampled_count += refresh_samples;
+        count = (int) sampled_count;
+        refresh_samples += remain;
+        int samples = (int) refresh_samples;
+        remain = (refresh_samples - (float) samples);
+        if (count > size) {
+            remain = sampled_count - (float) size;
+            refresh_samples -= remain;
+            samples = (int) refresh_samples;
+            count = size;
+        }
+        m_opl->update(buf_offset, samples);
+        PostProcess(buf_offset, samples);
+        buf_offset += samples * (m_usestereo ? 2 : 1);
     }
 
-    if (m_bit16) {
-        WriteFile16((short*) buf, samples);
-    } else {
-        WriteFile8((char*) buf, samples);
-    }
-
-    return samples;
+    m_previous = remain;
+    total_ += count;
+    return count;
 }
 
 void Opl::DebugPath(const char* path) {
@@ -155,9 +189,9 @@ void Opl::OpenFile() {
         CloseFile();
     }
     if (!m_path.empty()) {
-        m_FileIndex++;
+        m_file_index++;
         char filename[256];
-        snprintf(filename, sizeof(filename), "%s/Opl_%dbit_%dch_%dHz.%03d.raw", m_path.c_str(), (m_bit16 ? 16 : 8), (m_usestereo ? 2 : 1), m_rate, m_FileIndex);
+        snprintf(filename, sizeof(filename), "%s/Opl_%dbit_%dch_%dHz.%03d.raw", m_path.c_str(), 16, (m_usestereo ? 2 : 1), m_rate, m_file_index);
         m_stream = fopen(filename, "w");
     }
 }
@@ -169,7 +203,7 @@ void Opl::CloseFile() {
     }
 }
 
-void Opl::CopyStereo16(short* buf, int samples) {
+void Opl::CopyStereo(short* buf, int samples) {
     if (m_left && !m_right) {
         for (int i = 0; i < (2 * samples); i = i + 2) {
             buf[i + 1] = buf[i];
@@ -181,26 +215,15 @@ void Opl::CopyStereo16(short* buf, int samples) {
     }
 }
 
-void Opl::CopyStereo8(char* buf, int samples) {
-    if (m_left && !m_right) {
-        for (int i = 0; i < (2 * samples); i = i + 2) {
-            buf[i + 1] = buf[i];
-        }
-    } else if (!m_left && m_right) {
-        for (int i = 0; i < (2 * samples); i = i + 2) {
-            buf[i] = buf[i + 1];
-        }
-    }
-}
-
-void Opl::WriteFile16(short *buf, int samples) {
+void Opl::WriteFile(short* buf, int samples) {
     if (buf != nullptr && samples > 0 && m_stream != nullptr) {
         fwrite(buf, sizeof(short), (size_t) samples, m_stream);
     }
 }
 
-void Opl::WriteFile8(char *buf, int samples) {
-    if (buf != nullptr && samples > 0 && m_stream != nullptr) {
-        fwrite(buf, sizeof(char), (size_t) samples, m_stream);
+void Opl::PostProcess(void* buf, int count) {
+    if (m_usestereo && (m_left != m_right)) {
+        CopyStereo((short*) buf, count);
     }
+    WriteFile((short*) buf, count);
 }
