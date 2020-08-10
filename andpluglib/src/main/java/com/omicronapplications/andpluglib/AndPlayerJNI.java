@@ -1,21 +1,33 @@
 package com.omicronapplications.andpluglib;
 
 class AndPlayerJNI {
-    public native void initialize(int emu, int rate, boolean usestereo, boolean left, boolean right);
-    public native void uninitialize();
-    public native boolean load(String str);
-    public native void unload();
-    public native boolean isLoaded();
+    private IPlayerJNI mPlayer;
 
+    public AndPlayerJNI(IPlayerJNI player) {
+        mPlayer = player;
+    }
+    public native void oplInitialize(int emu, int rate, boolean usestereo);
+    public native void oplUninitialize();
+    public native void oplSetRepeat(boolean repeat);
     public native void oplWrite(int reg, int val);
     public native void oplSetchip(int n);
     public native int oplGetchip();
     public native void oplInit();
     public native int oplGettype();
-    public native int oplUpdate(short[] buf, int size, boolean repeat);
+    public native int oplUpdate(short[] buf, byte[] debugBuf, int size);
     public native void oplDebugPath(String str);
+    public native void oplOpenFile();
+    public native void oplCloseFile();
+    public void setState(int request, int state, String info) {
+        if (mPlayer != null) {
+            mPlayer.setState(IPlayer.PlayerRequest.values()[request], IPlayer.PlayerState.values()[state], info);
+        }
+    }
 
     public native String plugGetversion();
+    public native boolean plugLoad(String str);
+    public native void plugUnload();
+    public native boolean plugIsLoaded();
     public native void plugSeek(long ms);
     public native void plugRewind(int subsong);
     public native long plugSonglength(int subsong);
@@ -25,4 +37,12 @@ class AndPlayerJNI {
     public native String plugGetdesc();
     public native int plugGetsubsongs();
     public native int plugGetsubsong();
+
+    public native boolean oboeInitialize(int rate, boolean usestereo);
+    public native boolean oboeUninitialize();
+    public native boolean oboeRestart();
+    public native boolean oboePlay();
+    public native boolean oboePause();
+    public native boolean oboeStop();
+    public native int oboeGetState();
 }

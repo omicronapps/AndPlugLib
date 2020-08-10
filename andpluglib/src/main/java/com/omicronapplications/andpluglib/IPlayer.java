@@ -6,7 +6,7 @@ public interface IPlayer {
     String BUNDLE_STATE = "state";
     String BUNDLE_INFO = "info";
 
-    void initialize(Opl emu, int rate, boolean usestereo, boolean left, boolean right, int buffers);
+    void initialize(Opl emu, int rate, boolean oboe, boolean usestereo, int buffers);
     void uninitialize();
     void load(String song);
     void unload();
@@ -24,7 +24,7 @@ public interface IPlayer {
     String getDesc();
     int getSubsongs();
     int getSubsong();
-    void debugPath(String path);
+    void debugPath(boolean audioTrack, boolean opl, String path);
     PlayerState getState();
 
     enum PlayerRequest {

@@ -2,6 +2,7 @@
 #define AUDIOPLAYER_OPL_H
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include "AndPlug.h"
 
@@ -17,41 +18,37 @@
 
 class Opl {
 public:
-    Opl();
+    Opl(AndPlug* plug);
     ~Opl();
-    void Initialize(int emu, int rate, bool usestereo, bool left, bool right);
+    void Initialize(int emu, int rate, bool usestereo);
     void Uninitialize();
-    bool Load(const char* song);
-    void Unload();
-    bool isLoaded();
-    AndPlug* GetPlug();
+    Copl* GetCopl();
+    void SetRepeat(bool repeat);
 
     // Copl methods
     void Write(int reg, int val); // combined register select + data write
     void SetChip(int n); // select OPL chip
     int GetChip(); // returns current OPL chip
-    void Init(void); // reinitialize OPL chip(s)
+    void Init(); // reinitialize OPL chip(s)
     Copl::ChipType GetType();
-    int Update(void *buf, int size, bool repeat);
+    int Update(void *buf, int size);
 
 private:
     int m_rate;
     bool m_usestereo;
-    bool m_left;
-    bool m_right;
-    float m_previous;
-    std::unique_ptr<Copl> m_opl;
-    std::unique_ptr<AndPlug> m_plug;
+    bool m_repeat;
+    int m_previous;
+    AndPlug* m_plug;
+    std::unique_ptr<Copl> m_copl;
+    std::mutex m_coplmtx;
 
     // Debug use
 public:
     void DebugPath(const char* path);
-private:
     void OpenFile();
     void CloseFile();
-    void CopyStereo(short* buf, int samples);
+private:
     void WriteFile(short* buf, int samples);
-    void PostProcess(void* buf, int count);
     std::string m_path;
     FILE* m_stream;
     int m_file_index;

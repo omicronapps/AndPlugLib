@@ -26,13 +26,14 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 - [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.0.0) or later (`gradle:4.0.0`)
 - [AdPlug](https://github.com/adplug/adplug) Version 2.3.3 (_branch/tag:_ `release-2.3.3`)
 - [libbinio](https://github.com/adplug/libbinio) Version 1.5 (_tag:_ `libbionio-1.5`)
+- [Oboe](https://github.com/google/oboe) Version 1.4.3 (_branch:_ `1.4-stable`)
 
 ## Installation
 
 Setup steps:
 
 1. Check out a local copy of AndPlugLib repository
-2. Check out local copies of AdPlug and libbinio libraries under `andpluglib/src/main/cpp`
+2. Check out local copies of AdPlug, libbinio, and Oboe libraries under `andpluglib/src/main/cpp`
 3. Apply patches to AdPlug and libbinio
 4. Build library with Gradle, using Android Studio or directly from the command line 
 
@@ -43,6 +44,7 @@ $ git clone --branch release-2.3.3 https://github.com/adplug/adplug.git
 $ patch adplug/src/version.h -i adplug.patch
 $ git clone https://github.com/adplug/libbinio.git
 $ patch libbinio/src/binio.h -i libbinio.patch
+$ git clone https://github.com/google/oboe.git
 ```
 
 ## Testing
@@ -130,16 +132,15 @@ Returns a reference to a `PlayerService` instance. Only valid between `onService
 
 #### initialize
 
-```void initialize(Opl emu, int rate, boolean usestereo, boolean left, boolean right, int buffers)```
+```void initialize(Opl emu, int rate, boolean oboe, boolean usestereo, int buffers)```
 
 Create native AdPlug instance and initialize `AudioTrack`. Confirmed initialized if `onNewState()` callback returns `PlayerState.CREATED`.
 
 Arguments:
 - `emu` - OPL emulator
 - `rate` - sample rate (Hz)
+- `oboe` - Use native OpenSL ES/AAudio playback through Oboe
 - `usestereo` - true: stereo, false: mono
-- `left` - copy left channel data to right channel if left == true and right == false
-- `right` - copy right channel data to left channel if left == false and right == true
 - `buffers` - AdPlug buffer size (bytes)
 
 #### uninitialize
@@ -255,12 +256,14 @@ Get current sub-songs.
 
 #### debugPath
 
-```void debugPath(String path)```
+```void debugPath(boolean audioTrack, boolean opl, String path)```
 
 Debug use only! Output PCM data to file.
 
-Argument:
-- `path` - true: path to store PCM data
+Arguments:
+- `audioTrack` - write PCM data from Java code
+- `opl` - write PCM data from native code
+- `path` - path to store PCM data
 
 #### getState
 
@@ -337,7 +340,7 @@ Retrieve `IPlayer` object on `IAndPlugCallback.onServiceConnected()` callback, a
 import com.omicronapplications.andpluglib.IPlayer;
 
 IPlayer player = mController.getService();
-player.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, false, 4096);
+player.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
 player.load("the alibi.d00");
 player.play();
 ```
@@ -369,6 +372,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.4.0 Fixed bug in error reporting
 - 1.5.0 Improvements to buffer management and error reporting
 - 1.6.0 Improved lower latency player, support for choice of OPL emulator
+- 1.7.0 Support for native OpenSL ES/AAudio playback, fixed playback quality issue
 
 ## License
 

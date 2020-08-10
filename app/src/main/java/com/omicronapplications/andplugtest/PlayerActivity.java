@@ -23,6 +23,11 @@ import static com.omicronapplications.andpluglib.IPlayer.PlayerState.LOADED;
 
 public class PlayerActivity extends Activity implements IAndPlugCallback, View.OnClickListener {
     private static final String TAG = "PlayerActivity";
+    private static IPlayer.Opl TEST_EMU = IPlayer.Opl.OPL_CEMU;
+    private static int TEST_RATE = 49716;
+    private static boolean TEST_OBOE = true;
+    private static boolean TEST_USESTEREO = false;
+    private static int TEST_BUFFERS = 1024;
     private PlayerController mController;
     private IPlayer mPlayer;
     private String[] mFileNames = {
@@ -133,8 +138,8 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         String fileName = "the alibi.d00";
         File f = fileFromAssets(fileName);
         if (mPlayer != null) {
-            mPlayer.debugPath(getDebugDir(true));
-            mPlayer.initialize(IPlayer.Opl.OPL_CEMU, 48000, false, false, false, 1024);
+            mPlayer.debugPath(false, false, getDebugDir(true));
+            mPlayer.initialize(TEST_EMU, TEST_RATE, TEST_OBOE, TEST_USESTEREO, TEST_BUFFERS);
             mPlayer.setRepeat(false);
         }
     }
@@ -174,7 +179,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
                 break;
             case R.id.initialize_button:
                 if (mPlayer != null) {
-                    mPlayer.initialize(IPlayer.Opl.OPL_CEMU, 48000, false, false, false, 1024);
+                    mPlayer.initialize(TEST_EMU, TEST_RATE, TEST_OBOE, TEST_USESTEREO, TEST_BUFFERS);
                     mPlayer.setRepeat(true);
                 }
                 break;

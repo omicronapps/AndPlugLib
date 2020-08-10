@@ -6,12 +6,19 @@ set(ROOT src/main/cpp)
 set(BINIO ${ROOT}/libbinio/src)
 set(ADPLUG ${ROOT}/adplug/src)
 
+# oboe
+set(OBOE_DIR ${ROOT}/oboe)
+add_subdirectory(${OBOE_DIR} ./oboe)
+include_directories(${OBOE_DIR}/include)
+
 set(ROOT_FILES
         ${ROOT}/andplayer-jni.cpp
         ${ROOT}/andplayer-jni.h
         ${ROOT}/common.h
         ${ROOT}/AndPlug.cpp
         ${ROOT}/AndPlug.h
+        ${ROOT}/OboePlayer.cpp
+        ${ROOT}/OboePlayer.h
         ${ROOT}/Opl.cpp
         ${ROOT}/Opl.h
         )
@@ -112,4 +119,5 @@ set_property(SOURCE ${BINIO_FILES} APPEND PROPERTY COMPILE_DEFINITIONS ${BINIO_F
 set_property(SOURCE ${ADPLUG_FILES} APPEND PROPERTY COMPILE_DEFINITIONS ${ADPLUG_FLAGS})
 
 target_link_libraries(${TARGET}
-                      ${LOG-LIB})
+                      ${LOG-LIB}
+                      oboe)
