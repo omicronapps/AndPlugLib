@@ -10,6 +10,7 @@ static JavaVM* s_vm;
 static JNIEnv* s_env;
 static jobject s_thiz;
 static int s_state;
+std::mutex s_adplugmtx;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     s_vm = vm;

@@ -373,6 +373,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.5.0 Improvements to buffer management and error reporting
 - 1.6.0 Improved lower latency player, support for choice of OPL emulator
 - 1.7.0 Support for native OpenSL ES/AAudio playback, fixed playback quality issue
+- 1.8.0 Fixed crash regression issue due to unallowed concurrent access to Copl and CPlayer
 
 ## License
 

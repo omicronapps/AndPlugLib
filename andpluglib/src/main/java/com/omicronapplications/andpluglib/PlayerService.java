@@ -89,7 +89,7 @@ public class PlayerService extends Service implements
     private int mNumSubsongs;
     private int mCurSubsong;
     // PlayerRunner/MessageCallback variables
-    private final ReentrantLock mLock = new ReentrantLock(); // Guard: mTrack, mBuf, mChannels, mBuffers
+    private final ReentrantLock mLock = new ReentrantLock(); // Guard: mAdPlayer, mTrack, mBuf, mChannels, mBuffers
     private final Condition mPlayerAccess = mLock.newCondition(); // PlayerRunner:wait, MessageCallback:signal
     private final AndPlayerJNI mAdPlayer = new AndPlayerJNI(this);
     private AudioTrack mTrack;
@@ -292,7 +292,6 @@ public class PlayerService extends Service implements
                 }
             } else {
                 try {
-                    messageLock();
                     if (mTrack == null) {
                         Log.w(TAG, "startPlayer: not initialized");
                     } else if (mTrack.getPlayState() != AudioTrack.PLAYSTATE_PLAYING) {
@@ -302,8 +301,6 @@ public class PlayerService extends Service implements
                     }
                 } catch (IllegalStateException e) {
                     Log.e(TAG, "startPlayer: IllegalStateException: " + e.getMessage());
-                } finally {
-                    messageUnlock();
                 }
                 if (mPlayerThread != null) {
                     mIsRunning = true;
@@ -320,7 +317,6 @@ public class PlayerService extends Service implements
                 paused = mAdPlayer.oboePause();
             } else {
                 try {
-                    messageLock();
                     if (mTrack == null) {
                         Log.w(TAG, "pausePlayer: not initialized");
                     } else {
@@ -329,8 +325,6 @@ public class PlayerService extends Service implements
                     }
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "pausePlayer: IllegalStateException: " + e.getMessage());
-                } finally {
-                    messageUnlock();
                 }
             }
             return paused;
@@ -342,15 +336,12 @@ public class PlayerService extends Service implements
                 mAdPlayer.oboeStop();
             } else {
                 try {
-                    messageLock();
                     if (mTrack != null) {
                         mTrack.stop();
                         mTrack.flush();
                     }
                 } catch (IllegalStateException e) {
                     Log.w(TAG, "stopPlayer: IllegalStateException: " + e.getMessage());
-                } finally {
-                    messageUnlock();
                 }
             }
             if (mAdPlayer.plugIsLoaded()) {
@@ -368,16 +359,11 @@ public class PlayerService extends Service implements
             if (mOboe) {
                 mAdPlayer.oboeUninitialize();
             } else {
-                try {
-                    messageLock();
-                    if (mTrack != null) {
-                        mTrack.release();
-                        mTrack = null;
-                    }
-                    mBuf = null;
-                } finally {
-                    messageUnlock();
+                if (mTrack != null) {
+                    mTrack.release();
+                    mTrack = null;
                 }
+                mBuf = null;
             }
         }
 
@@ -447,23 +433,23 @@ public class PlayerService extends Service implements
                         setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize: " + emu + "/" + rate + "/" + buffers);
                         break;
                     }
-                    shutdownPlayer();
-                    // Create native player instance
-                    mAdPlayer.oplInitialize(emu, rate, usestereo);
-                    // Create audio player
-                    if (mOboe) {
-                        if (!mAdPlayer.oboeInitialize(rate, usestereo)) {
-                            Log.e(TAG, "initialize: failed to initialize native playback");
-                            setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize native playback");
-                            break;
-                        }
-                    } else {
-                        int channelConfig = usestereo ? AudioFormat.CHANNEL_OUT_STEREO : AudioFormat.CHANNEL_OUT_MONO;
-                        int audioFormat = ENCODING_PCM_16BIT;
-                        int bufferSizeInBytes = AudioTrack.getMinBufferSize(rate, channelConfig, audioFormat);
-                        bufferSizeInBytes = Math.max(bufferSizeInBytes, buffers);
-                        try {
-                            messageLock();
+                    try {
+                        messageLock();
+                        shutdownPlayer();
+                        // Create native player instance
+                        mAdPlayer.oplInitialize(emu, rate, usestereo);
+                        // Create audio player
+                        if (mOboe) {
+                            if (!mAdPlayer.oboeInitialize(rate, usestereo)) {
+                                Log.e(TAG, "initialize: failed to initialize native playback");
+                                setState(PlayerRequest.INITIALIZE, PlayerState.ERROR, "Failed to initialize native playback");
+                                break;
+                            }
+                        } else {
+                            int channelConfig = usestereo ? AudioFormat.CHANNEL_OUT_STEREO : AudioFormat.CHANNEL_OUT_MONO;
+                            int audioFormat = ENCODING_PCM_16BIT;
+                            int bufferSizeInBytes = AudioTrack.getMinBufferSize(rate, channelConfig, audioFormat);
+                            bufferSizeInBytes = Math.max(bufferSizeInBytes, buffers);
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                 mTrack = new AudioTrack.Builder().
                                         setAudioAttributes(new AudioAttributes.
@@ -488,21 +474,27 @@ public class PlayerService extends Service implements
                             mBuffers = buffers;
                             // Stereo playback requires double amount of samples
                             mBuf = new short[mChannels * mBuffers];
-                        } finally {
-                            messageUnlock();
                         }
+                    } finally {
+                        messageUnlock();
                     }
                     setState(PlayerRequest.INITIALIZE, PlayerState.CREATED, null);
                     break;
 
                 case PLAYER_UNINITIALIZE:
                 case PLAYER_DESTROY:
-                    shutdownPlayer();
+                    try {
+                        messageLock();
+                        shutdownPlayer();
+                    } finally {
+                        messageUnlock();
+                    }
                     PlayerRequest request = (msg.what == PLAYER_UNINITIALIZE) ? PlayerRequest.UNINITIALIZE : PlayerRequest.DESTROY;
                     setState(request, PlayerState.DEFAULT, null);
                     break;
 
                 case PLAYER_LOAD:
+                    boolean isLoaded = false;
                     data = msg.getData();
                     String song = data.getString(BUNDLE_SONG);
                     if (song == null || song.isEmpty()) {
@@ -510,34 +502,39 @@ public class PlayerService extends Service implements
                         setState(PlayerRequest.LOAD, PlayerState.ERROR, "No song selected");
                         break;
                     }
-                    if (mOboe) {
-                        if (!mAdPlayer.oboeRestart()) {
-                            Log.w(TAG, "load: failed to restart native playback: " + song);
-                            setState(PlayerRequest.LOAD, PlayerState.ERROR, "Failed to restart native playback");
+                    try {
+                        messageLock();
+                        if (mOboe) {
+                            if (!mAdPlayer.oboeRestart()) {
+                                Log.w(TAG, "load: failed to restart native playback: " + song);
+                                setState(PlayerRequest.LOAD, PlayerState.ERROR, "Failed to restart native playback");
+                            }
+                        } else {
+                            stopPlayer();
                         }
-                    } else {
-                        stopPlayer();
-                    }
-                    boolean isLoaded = mAdPlayer.plugLoad(song);
-                    openDebugFile();
-                    if (isLoaded) {
-                        File file = new File(song);
-                        mSong = file.getName();
-                        mLength = mAdPlayer.plugSonglength(-1);
-                        mTitle = mAdPlayer.plugGettitle();
-                        mAuthor = mAdPlayer.plugGetauthor();
-                        mDesc = mAdPlayer.plugGetdesc();
-                        mNumSubsongs = mAdPlayer.plugGetsubsongs();
-                        mCurSubsong = mAdPlayer.plugGetsubsong();
-                    } else {
-                        Log.w(TAG, "load: failed to load song: " + song);
-                        mSong = "";
-                        mLength = 0;
-                        mTitle = "";
-                        mAuthor = "";
-                        mDesc = "";
-                        mNumSubsongs = -1;
-                        mCurSubsong = -1;
+                        isLoaded = mAdPlayer.plugLoad(song);
+                        openDebugFile();
+                        if (isLoaded) {
+                            File file = new File(song);
+                            mSong = file.getName();
+                            mLength = mAdPlayer.plugSonglength(-1);
+                            mTitle = mAdPlayer.plugGettitle();
+                            mAuthor = mAdPlayer.plugGetauthor();
+                            mDesc = mAdPlayer.plugGetdesc();
+                            mNumSubsongs = mAdPlayer.plugGetsubsongs();
+                            mCurSubsong = mAdPlayer.plugGetsubsong();
+                        } else {
+                            Log.w(TAG, "load: failed to load song: " + song);
+                            mSong = "";
+                            mLength = 0;
+                            mTitle = "";
+                            mAuthor = "";
+                            mDesc = "";
+                            mNumSubsongs = -1;
+                            mCurSubsong = -1;
+                        }
+                    } finally {
+                        messageUnlock();
                     }
                     PlayerState state = isLoaded ? PlayerState.LOADED : PlayerState.ERROR;
                     File file = new File(song);
@@ -545,9 +542,14 @@ public class PlayerService extends Service implements
                     break;
 
                 case PLAYER_UNLOAD:
-                    if (mAdPlayer.plugIsLoaded()) {
-                        mAdPlayer.plugUnload();
-                        closeDebugFile();
+                    try {
+                        messageLock();
+                        if (mAdPlayer.plugIsLoaded()) {
+                            mAdPlayer.plugUnload();
+                            closeDebugFile();
+                        }
+                    } finally {
+                        messageUnlock();
                     }
                     mSong = "";
                     mLength = 0;
@@ -560,32 +562,59 @@ public class PlayerService extends Service implements
                     break;
 
                 case PLAYER_PLAY:
-                    boolean playing = startPlayer();
+                    boolean playing = false;
+                    try {
+                        messageLock();
+                    } finally {
+                        playing = startPlayer();
+                        messageUnlock();
+                    }
                     state = playing ? PlayerState.PLAYING : PlayerState.ERROR;
                     setState(PlayerRequest.PLAY, state, playing ? null : "Failed to play song");
                     break;
 
                 case PLAYER_PAUSE:
-                    boolean paused = pausePlayer();
+                    boolean paused = false;
+                    try {
+                        messageLock();
+                        paused = pausePlayer();
+                    } finally {
+                        messageUnlock();
+                    }
                     state = paused ? PlayerState.PAUSED : PlayerState.ERROR;
                     setState(PlayerRequest.PAUSE, state, paused ? null : "Failed to pause song");
                     break;
 
                 case PLAYER_STOP:
-                    stopPlayer();
+                    try {
+                        messageLock();
+                        stopPlayer();
+                    } finally {
+                        messageUnlock();
+                    }
                     setState(PlayerRequest.STOP, PlayerState.STOPPED, null);
                     break;
 
                 case PLAYER_SEEK:
                     data = msg.getData();
                     long ms = data.getLong(BUNDLE_SEEK);
-                    mAdPlayer.plugSeek(ms);
+                    try {
+                        messageLock();
+                        mAdPlayer.plugSeek(ms);
+                    } finally {
+                        messageUnlock();
+                    }
                     break;
 
                 case PLAYER_REWIND:
                     data = msg.getData();
                     int subsong = data.getInt(BUNDLE_SUBSONG);
-                    mAdPlayer.plugRewind(subsong);
+                    try {
+                        messageLock();
+                        mAdPlayer.plugRewind(subsong);
+                    } finally {
+                        messageUnlock();
+                    }
                     break;
 
                 case PLAYER_REPEAT:
@@ -600,13 +629,18 @@ public class PlayerService extends Service implements
                     mDebugOpl = data.getBoolean(BUNDLE_DEBUGOPL);
                     mDebugPath = data.getString(BUNDLE_DEBUGPATH);
                     mDebugStream = null;
-                    if (mDebugPath != null && !mDebugPath.isEmpty()) {
-                        if (mDebugOpl) {
-                            mAdPlayer.oplDebugPath(mDebugPath);
+                    try {
+                        messageLock();
+                        if (mDebugPath != null && !mDebugPath.isEmpty()) {
+                            if (mDebugOpl) {
+                                mAdPlayer.oplDebugPath(mDebugPath);
+                            }
+                        } else {
+                            mDebugAudio = false;
+                            mDebugOpl = false;
                         }
-                    } else {
-                        mDebugAudio = false;
-                        mDebugOpl = false;
+                    } finally {
+                        messageUnlock();
                     }
                     mFileIndex = 0;
                     break;

@@ -2,7 +2,6 @@
 #define AUDIOPLAYER_OPL_H
 
 #include <memory>
-#include <mutex>
 #include <string>
 #include "AndPlug.h"
 
@@ -40,7 +39,6 @@ private:
     int m_previous;
     AndPlug* m_plug;
     std::unique_ptr<Copl> m_copl;
-    std::mutex m_coplmtx;
 
     // Debug use
 public:

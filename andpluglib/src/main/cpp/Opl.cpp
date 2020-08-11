@@ -5,8 +5,11 @@
 #include "nemuopl.h"
 #include "temuopl.h"
 #include "wemuopl.h"
+#include <mutex>
 
 #define LOG_TAG "Opl"
+
+extern std::mutex s_adplugmtx;
 
 Opl::Opl(AndPlug* plug) : m_rate(0), m_usestereo(false), m_repeat(false), m_previous(0.0), m_plug(plug), m_stream(nullptr), m_file_index(0) {
     m_copl.reset(nullptr);
@@ -21,7 +24,7 @@ Opl::~Opl() {
 void Opl::Initialize(int emu, int rate, bool usestereo) {
     m_rate = rate;
     m_usestereo = usestereo;
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     switch (emu) {
         case OPL_CEMU:
         default:
@@ -44,14 +47,14 @@ void Opl::Initialize(int emu, int rate, bool usestereo) {
 
 void Opl::Uninitialize() {
     CloseFile();
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     m_copl.reset(nullptr);
 }
 
 Copl* Opl::GetCopl() {
     Copl* copl = nullptr;
     {
-        std::unique_lock<std::mutex> lock(m_coplmtx);
+        std::unique_lock<std::mutex> lock(s_adplugmtx);
         if (m_copl != nullptr) {
             copl = m_copl.get();
         } else {
@@ -66,7 +69,7 @@ void Opl::SetRepeat(bool repeat) {
 }
 
 void Opl::Write(int reg, int val) {
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     if (m_copl != nullptr) {
         m_copl->write(reg, val);
     } else {
@@ -75,7 +78,7 @@ void Opl::Write(int reg, int val) {
 }
 
 void Opl::SetChip(int n) {
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     if (m_copl != nullptr) {
         m_copl->setchip(n);
     } else {
@@ -85,7 +88,7 @@ void Opl::SetChip(int n) {
 
 int Opl::GetChip() {
     int currChip = 0;
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     if (m_copl != nullptr) {
         currChip = m_copl->getchip();
     } else {
@@ -95,7 +98,7 @@ int Opl::GetChip() {
 }
 
 void Opl::Init() {
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     if (m_copl != nullptr) {
         m_copl->init();
     } else {
@@ -105,7 +108,7 @@ void Opl::Init() {
 
 Copl::ChipType Opl::GetType() {
     Copl::ChipType currType = (Copl::ChipType) 0;
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     if (m_copl != nullptr) {
         currType = m_copl->gettype();
     } else {
@@ -115,7 +118,7 @@ Copl::ChipType Opl::GetType() {
 }
 
 int Opl::Update(void* buf, int size) {
-    std::unique_lock<std::mutex> lock(m_coplmtx);
+    std::unique_lock<std::mutex> lock(s_adplugmtx);
     short* buf_offset = (short*) buf;
     int sampled_count = m_previous;
     int count = sampled_count;

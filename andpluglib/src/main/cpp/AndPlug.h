@@ -4,7 +4,6 @@
 #include "adplug.h"
 #include "emuopl.h"
 #include <memory>
-#include <mutex>
 
 class AndPlug {
 public:
@@ -41,7 +40,6 @@ public:
 
 private:
     std::unique_ptr<CPlayer> m_p;
-    std::mutex m_pmtx;
 };
 
 #endif //ANDPLUG_H
