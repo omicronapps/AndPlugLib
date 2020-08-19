@@ -2,6 +2,7 @@
 #define AUDIOPLAYER_OPL_H
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include "AndPlug.h"
 
@@ -17,7 +18,7 @@
 
 class Opl {
 public:
-    Opl(AndPlug* plug);
+    Opl(AndPlug* plug, std::mutex& adplugmtx);
     ~Opl();
     void Initialize(int emu, int rate, bool usestereo);
     void Uninitialize();
@@ -38,6 +39,7 @@ private:
     bool m_repeat;
     int m_previous;
     AndPlug* m_plug;
+    std::mutex& m_adplugmtx;
     std::unique_ptr<Copl> m_copl;
 
     // Debug use

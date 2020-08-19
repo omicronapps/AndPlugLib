@@ -1,13 +1,14 @@
 #ifndef ANDPLUG_H
 #define ANDPLUG_H
 
+#include <memory>
+#include <mutex>
 #include "adplug.h"
 #include "emuopl.h"
-#include <memory>
 
 class AndPlug {
 public:
-    AndPlug();
+    AndPlug(std::mutex& adplugmtx);
     ~AndPlug();
     bool Load(const char* song, Copl* opl);
     void Unload();
@@ -18,8 +19,8 @@ public:
 
     // CPlayer methods - Operational
     void Seek(unsigned long ms);
-    bool Update(); // executes replay code for 1 tick
-    void Rewind(int subsong); // rewinds to specified subsong
+    bool Update(bool rewind = false, int subsong = -1); // executes replay code for 1 tick
+    void Rewind(int subsong = -1); // rewinds to specified subsong
     float GetRefresh(); // returns needed timer refresh rate
     // CPlayer methods - Informational
     unsigned long SongLength(int subsong);
@@ -39,6 +40,7 @@ public:
     const char* GetInstrument(unsigned int n); // returns n-th instrument name
 
 private:
+    std::mutex& m_adplugmtx;
     std::unique_ptr<CPlayer> m_p;
 };
 

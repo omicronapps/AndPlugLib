@@ -1,12 +1,9 @@
 #include "AndPlug.h"
 #include "common.h"
-#include <mutex>
 
 #define LOG_TAG "AndPlug"
 
-extern std::mutex s_adplugmtx;
-
-AndPlug::AndPlug() = default;
+AndPlug::AndPlug(std::mutex& adplugmtx) : m_adplugmtx(adplugmtx) {}
 
 AndPlug::~AndPlug() {
     Unload();
@@ -16,7 +13,7 @@ bool AndPlug::Load(const char* song, Copl* opl) {
     CPlayer* player = CAdPlug::factory(std::string(song), opl);
     bool isLoaded;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         m_p.reset(player);
         isLoaded = (player != nullptr);
     }
@@ -27,14 +24,14 @@ bool AndPlug::Load(const char* song, Copl* opl) {
 }
 
 void AndPlug::Unload() {
-    std::unique_lock<std::mutex> lock(s_adplugmtx);
+    std::unique_lock<std::mutex> lock(m_adplugmtx);
     m_p.reset(nullptr);
 }
 
 bool AndPlug::isLoaded() {
     bool isLoaded;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         isLoaded = (m_p != nullptr);
     }
     return isLoaded;
@@ -45,22 +42,25 @@ const char *AndPlug::GetVersion() {
 }
 
 void AndPlug::Seek(unsigned long ms) {
-    std::unique_lock<std::mutex> lock(s_adplugmtx);
+    std::unique_lock<std::mutex> lock(m_adplugmtx);
     if (m_p != nullptr) {
         m_p->seek(ms);
     }
 }
 
-bool AndPlug::Update() {
+bool AndPlug::Update(bool rewind, int subsong) {
     bool playing = false;
     if (m_p != nullptr) {
+        if (rewind) {
+            m_p->rewind(subsong);
+        }
         playing = m_p->update();
     }
     return playing;
 }
 
 void AndPlug::Rewind(int subsong) {
-    std::unique_lock<std::mutex> lock(s_adplugmtx);
+    std::unique_lock<std::mutex> lock(m_adplugmtx);
     if (m_p != nullptr) {
         m_p->rewind(subsong);
     }
@@ -77,7 +77,7 @@ float AndPlug::GetRefresh() {
 unsigned long AndPlug::SongLength(int subsong) {
     unsigned long slength = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             slength = m_p->songlength(subsong);
         }
@@ -88,7 +88,7 @@ unsigned long AndPlug::SongLength(int subsong) {
 std::string AndPlug::GetType() {
     std::string type;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             type = m_p->gettype();
         }
@@ -99,7 +99,7 @@ std::string AndPlug::GetType() {
 std::string AndPlug::GetTitle() {
     std::string title;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             title = m_p->gettitle();
         }
@@ -110,7 +110,7 @@ std::string AndPlug::GetTitle() {
 std::string AndPlug::GetAuthor() {
     std::string author;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             author = m_p->getauthor();
         }
@@ -121,7 +121,7 @@ std::string AndPlug::GetAuthor() {
 std::string AndPlug::GetDesc() {
     std::string desc;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             desc = m_p->getdesc();
         }
@@ -132,7 +132,7 @@ std::string AndPlug::GetDesc() {
 unsigned int AndPlug::GetPatterns() {
     unsigned int pattcnt = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             pattcnt = m_p->getpatterns();
         }
@@ -143,7 +143,7 @@ unsigned int AndPlug::GetPatterns() {
 unsigned int AndPlug::GetPattern() {
     unsigned int ord = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             ord = m_p->getpattern();
         }
@@ -154,7 +154,7 @@ unsigned int AndPlug::GetPattern() {
 unsigned int AndPlug::GetOrders() {
     unsigned int poscnt = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             poscnt = m_p->getorders();
         }
@@ -165,7 +165,7 @@ unsigned int AndPlug::GetOrders() {
 unsigned int AndPlug::GetOrder() {
     unsigned int songpos = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             songpos = m_p->getorder();
         }
@@ -176,7 +176,7 @@ unsigned int AndPlug::GetOrder() {
 unsigned int AndPlug::GetRow() {
     unsigned int pattpos = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             pattpos = m_p->getrow();
         }
@@ -187,7 +187,7 @@ unsigned int AndPlug::GetRow() {
 unsigned int AndPlug::GetSpeed() {
     unsigned int speed = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             speed = m_p->getspeed();
         }
@@ -198,7 +198,7 @@ unsigned int AndPlug::GetSpeed() {
 unsigned int AndPlug::GetSubsongs() {
     unsigned int numsubsongs = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             numsubsongs = m_p->getsubsongs();
         }
@@ -209,7 +209,7 @@ unsigned int AndPlug::GetSubsongs() {
 unsigned int AndPlug::GetSubsong() {
     unsigned int cursubsong = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             cursubsong = m_p->getsubsong();
         }
@@ -220,7 +220,7 @@ unsigned int AndPlug::GetSubsong() {
 unsigned int AndPlug::GetInstruments() {
     unsigned int instnum = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             instnum = m_p->getinstruments();
         }
@@ -231,7 +231,7 @@ unsigned int AndPlug::GetInstruments() {
 const char* AndPlug::GetInstrument(unsigned int n) {
     const char* instname = 0;
     {
-        std::unique_lock<std::mutex> lock(s_adplugmtx);
+        std::unique_lock<std::mutex> lock(m_adplugmtx);
         if (m_p != nullptr) {
             instname = m_p->getinstrument(n).c_str();
         }

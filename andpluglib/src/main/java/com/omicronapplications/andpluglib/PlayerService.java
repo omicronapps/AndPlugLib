@@ -345,7 +345,7 @@ public class PlayerService extends Service implements
                 }
             }
             if (mAdPlayer.plugIsLoaded()) {
-                mAdPlayer.plugRewind(0);
+                mAdPlayer.plugRewind(-1);
             }
         }
 

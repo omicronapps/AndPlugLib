@@ -1,4 +1,5 @@
 #include <cstring>
+#include <mutex>
 #include "andplayer-jni.h"
 #include "common.h"
 #include "Opl.h"
@@ -7,13 +8,32 @@
 #define LOG_TAG "andplayer-jni"
 
 static JavaVM* s_vm;
-static JNIEnv* s_env;
+static jmethodID s_classLoaderID;
+static jobject s_classLoaderObject;
 static jobject s_thiz;
 static int s_state;
-std::mutex s_adplugmtx;
+
+static jobject getClassLoaderObject(JNIEnv* env, const char* name) {
+    jclass clazz = env->FindClass(name);
+    jclass objectClass = env->GetObjectClass(clazz);
+    jmethodID classLoaderID = env->GetMethodID(objectClass, "getClassLoader", "()Ljava/lang/ClassLoader;");
+    jobject classLoaderObject = env->CallObjectMethod(clazz, classLoaderID);
+    return env->NewGlobalRef(classLoaderObject);
+}
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     s_vm = vm;
+    JNIEnv* env = nullptr;
+    if (vm->GetEnv((void**)&env, JNI_VERSION_1_6) == JNI_OK) {
+        jclass classLoaderClass = env->FindClass("java/lang/ClassLoader");
+        s_classLoaderID = env->GetMethodID(classLoaderClass, "findClass", "(Ljava/lang/String;)Ljava/lang/Class;");
+        s_classLoaderObject = getClassLoaderObject(env, "com/omicronapplications/andpluglib/AndPlayerJNI");
+        if (env->ExceptionCheck()) {
+            LOGE(LOG_TAG, "JNI_OnLoad: GetObjectClass failed");
+            env->ExceptionClear();
+        }
+    }
+
     return JNI_VERSION_1_6;
 }
 
@@ -21,13 +41,18 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved) {
     s_vm = nullptr;
 }
 
+static std::mutex& adplugmtx() {
+    static std::mutex s_adplugmtx;
+    return s_adplugmtx;
+}
+
 static AndPlug* andplug() {
-    static std::unique_ptr<AndPlug> s_andplug(new AndPlug());
+    static std::unique_ptr<AndPlug> s_andplug(new AndPlug(adplugmtx()));
     return s_andplug.get();
 }
 
 static Opl* opl() {
-    static std::unique_ptr<Opl> s_opl(new Opl(andplug()));
+    static std::unique_ptr<Opl> s_opl(new Opl(andplug(), adplugmtx()));
     return s_opl.get();
 }
 
@@ -53,28 +78,35 @@ static jstring getJstring(JNIEnv *env, const char *bytes) {
 
 void setState(int request, int state, const char* info) {
     s_state = state;
-    JNIEnv* env = s_env;
-    jobject thiz = s_thiz;
-    if (s_env == nullptr || s_thiz == nullptr) {
+    JNIEnv* env = nullptr;
+    jint attached = s_vm->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (attached == JNI_EDETACHED) {
+        if (s_vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
+            LOGE(LOG_TAG, "setState: Failed to attach to the VM");
+            return;
+        }
+    } else if (attached != JNI_OK) {
+        LOGE(LOG_TAG, "setState: Failed to get environment");
         return;
     }
 
-    s_vm->AttachCurrentThread(&env, nullptr);
-    jclass clazz = env->GetObjectClass(thiz);
+    jclass clazz = static_cast<jclass>(env->CallObjectMethod(s_classLoaderObject, s_classLoaderID, env->NewStringUTF("com/omicronapplications/andpluglib/AndPlayerJNI")));
     if (env->ExceptionCheck()) {
-        LOGE(LOG_TAG, "setState: GetObjectClass %p failed", thiz);
+        LOGE(LOG_TAG, "setState: CallObjectMethod failed");
         env->ExceptionClear();
     } else {
         jmethodID id = env->GetMethodID(clazz, "setState", "(IILjava/lang/String;)V");
-        if (env->ExceptionCheck()) {
-            LOGE(LOG_TAG, "setState: GetMethodID %p failed", clazz);
+       if (env->ExceptionCheck()) {
+//            LOGE(LOG_TAG, "setState: GetMethodID %p failed", clazz);
             env->ExceptionClear();
         } else {
             jstring str = env->NewStringUTF(info);
-            env->CallVoidMethod(thiz, id, request, state, str);
+            env->CallVoidMethod(s_thiz, id, request, state, str);
         }
     }
-    s_vm->DetachCurrentThread();
+    if (attached == JNI_EDETACHED) {
+        s_vm->DetachCurrentThread();
+    }
 }
 
 extern "C"
@@ -257,7 +289,6 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plug
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeInitialize(JNIEnv* env, jobject thiz, jint rate, jboolean usestereo) {
     s_state = 1;
-    s_env = env;
     if (s_thiz != nullptr && env->GetObjectRefType(s_thiz) == JNIGlobalRefType) {
         env->DeleteGlobalRef(s_thiz);
     }
