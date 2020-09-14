@@ -4,6 +4,7 @@
 #include "common.h"
 #include "Opl.h"
 #include "OboePlayer.h"
+#include "SongInfo.h"
 
 #define LOG_TAG "andplayer-jni"
 
@@ -59,6 +60,11 @@ static Opl* opl() {
 static OboePlayer* oboe_player() {
     static std::unique_ptr<OboePlayer> s_oboe(new OboePlayer(opl()));
     return s_oboe.get();
+}
+
+static SongInfo* song_info() {
+    static std::unique_ptr<SongInfo> s_info(new SongInfo());
+    return s_info.get();
 }
 
 static jstring getJstring(JNIEnv *env, const char *bytes) {
@@ -323,6 +329,55 @@ JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_
 
 JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeGetState(JNIEnv* env, jobject thiz) {
     return s_state;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoLoad(JNIEnv *env, jobject thiz, jstring str) {
+    const char *song = env->GetStringUTFChars(str, 0);
+    bool isLoaded = song_info()->Load(song);
+    env->ReleaseStringUTFChars(str, song);
+    return isLoaded;
+}
+
+JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoSonglength(JNIEnv* env, jobject thiz, jint subsong) {
+    long length = -1;
+    SongInfo* info = song_info();
+    length = (long) info->SongLength(subsong);
+    return length;
+}
+
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGettype(JNIEnv* env, jobject thiz) {
+    const char* type = nullptr;
+    SongInfo* info = song_info();
+    type = info->GetType().c_str();
+    return getJstring(env, type);
+}
+
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGettitle(JNIEnv* env, jobject thiz) {
+    const char* title = nullptr;
+    SongInfo* info = song_info();
+    title = info->GetTitle().c_str();
+    return getJstring(env, title);
+}
+
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetauthor(JNIEnv* env, jobject thiz) {
+    const char* author = nullptr;
+    SongInfo* info = song_info();
+    author = info->GetAuthor().c_str();
+    return getJstring(env, author);
+}
+
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetdesc(JNIEnv* env, jobject thiz) {
+    const char* desc = nullptr;
+    SongInfo* info = song_info();
+    desc = info->GetDesc().c_str();
+    return getJstring(env, desc);
+}
+
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetsubsongs(JNIEnv* env, jobject thiz) {
+    int numsubsongs = -1;
+    SongInfo* info = song_info();
+    numsubsongs = (int) info->GetSubsongs();
+    return numsubsongs;
 }
 
 } // extern "C"

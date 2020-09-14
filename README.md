@@ -23,7 +23,7 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 
 - [Android 4.0.3](https://developer.android.com/about/versions/android-4.0.3) (API Level: 15) or later (`ICE_CREAM_SANDWICH_MR1`)
 - [CMake](https://cmake.org/) Release 3.4.1 or later
-- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.0.0) or later (`gradle:4.0.0`)
+- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.0.1) or later (`gradle:4.0.1`)
 - [AdPlug](https://github.com/adplug/adplug) Version 2.3.3 (_branch/tag:_ `release-2.3.3`)
 - [libbinio](https://github.com/adplug/libbinio) Version 1.5 (_tag:_ `libbionio-1.5`)
 - [Oboe](https://github.com/google/oboe) Version 1.4.3 (_branch:_ `1.4-stable`)
@@ -206,6 +206,16 @@ Control repeat behavior of current song.
 Argument:
 - `repeat` - true: repeat song indefinitely, false: skip to next song at end of current song
 
+#### songInfo
+
+```void songInfo(String song, long length)```
+
+Control repeat behavior of current song.
+
+Argument:
+- `song` - full path to song
+- `length` - file length
+
 #### getRepeat
 
 ```boolean getRepeat()```
@@ -296,6 +306,23 @@ Notification of new `PlayerService` state.
 - `request` - requested state
 - `state` - actual state
 
+#### onSongInfo
+
+```void onSongInfo(String song, String type, String title, String author, String desc, long length, long songlength, int subsongs, boolean valid, boolean playlist)```
+
+Song information from AdPlug.
+
+- `song` - full path to song
+- `type` - song type
+- `title` - title
+- `author` - author
+- `desc` - description
+- `length` - file length
+- `songlength` - length of song in ms
+- `subsongs` - number of subsongs
+- `valid` - valid AdPlug song
+- `playlist` - playlist
+
 ## Example
 
 Implement `IAndPlugCallback` callback interface:
@@ -375,6 +402,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.7.0 Support for native OpenSL ES/AAudio playback, fixed playback quality issue
 - 1.8.0 Fixed crash regression issue due to unallowed concurrent access to Copl and CPlayer
 - 1.9.0 Fixed issue with some song formats not repeating
+- 2.0.0 Support for retrieving song info separately
 
 ## License
 

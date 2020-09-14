@@ -11,8 +11,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
-
 public class PlayerController {
     private static final String TAG = "PlayerController";
     private final IAndPlugCallback mCallback;
@@ -78,6 +76,21 @@ public class PlayerController {
                 String info = data.getString(IPlayer.BUNDLE_INFO, "");
                 if (mCallback != null) {
                     mCallback.onNewState(request, state, info);
+                }
+            } else if (msg.what == IPlayer.SONG_INFO) {
+                Bundle data = msg.getData();
+                String song = data.getString(IPlayer.BUNDLE_SONG);
+                String type = data.getString(IPlayer.BUNDLE_TYPE);
+                String title = data.getString(IPlayer.BUNDLE_TITLE);
+                String author = data.getString(IPlayer.BUNDLE_AUTHOR);
+                String desc = data.getString(IPlayer.BUNDLE_DESC);
+                long length = data.getLong(IPlayer.BUNDLE_LENGTH, 0);
+                long songlength = data.getLong(IPlayer.BUNDLE_SONGLENGTH, -1);
+                int subsongs = data.getInt(IPlayer.BUNDLE_SUBSONGS, -1);
+                boolean valid = data.getBoolean(IPlayer.BUNDLE_VALID, false);
+                boolean playlist = data.getBoolean(IPlayer.BUNDLE_PLAYLIST, false);
+                if (mCallback != null) {
+                    mCallback.onSongInfo(song, type, title, author, desc, length, songlength, subsongs, valid, playlist);
                 }
             }
             return true;

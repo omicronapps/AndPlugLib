@@ -135,8 +135,6 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
     @Override
     public void onServiceConnected() {
         mPlayer = mController.getService();
-        String fileName = "the alibi.d00";
-        File f = fileFromAssets(fileName);
         if (mPlayer != null) {
             mPlayer.debugPath(false, false, getDebugDir(true));
             mPlayer.initialize(TEST_EMU, TEST_RATE, TEST_OBOE, TEST_USESTEREO, TEST_BUFFERS);
@@ -166,6 +164,11 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
         } else if (state == FATAL) {
             Log.e(TAG, "fatal: " + info);
         }
+    }
+
+    @Override
+    public void onSongInfo(String song, String type, String title, String author, String desc, long length, long songlength, int subsongs, boolean valid, boolean playlist) {
+        Log.i(TAG, "onSongInfo: " + song + ", " + type + ", " + title + ", " + author + ", " + desc + ", " + length + ", " + songlength + ", " + subsongs + ", " + valid + ", " + playlist);
     }
 
     @Override
@@ -200,6 +203,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
                 if (mPlayer != null) {
                     mPlayer.load(f.getAbsolutePath());
                     mPlayer.play();
+                    mPlayer.songInfo(f.getAbsolutePath(), f.length());
                 }
                 break;
             case R.id.info_button:
@@ -228,6 +232,7 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
                     mPlayer.load(f.getAbsolutePath());
                     mSong = 1;
                     mPlayer.play();
+                    mPlayer.songInfo(f.getAbsolutePath(), f.length());
                 }
                 break;
             case R.id.play_button:

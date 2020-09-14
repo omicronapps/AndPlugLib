@@ -21,6 +21,8 @@ set(ROOT_FILES
         ${ROOT}/OboePlayer.h
         ${ROOT}/Opl.cpp
         ${ROOT}/Opl.h
+        ${ROOT}/SongInfo.cpp
+        ${ROOT}/SongInfo.h
         )
 
 # libbinio-1.5

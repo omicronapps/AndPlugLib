@@ -48,6 +48,9 @@ public class PlayerServiceTest {
         public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state, String info) {
             completableFuture.complete(state);
         }
+
+        @Override
+        public void onSongInfo(String song, String type, String title, String author, String desc, long length, long songlength, int subsongs, boolean valid, boolean playlist) {}
     }
 
     private static void waitForCallback() {

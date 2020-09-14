@@ -41,6 +41,14 @@ JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboePause(JNIEnv* env, jobject thiz);
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeStop(JNIEnv* env, jobject thiz);
 JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeGetState(JNIEnv* env, jobject thiz);
+
+JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoLoad(JNIEnv *env, jobject thiz, jstring str);
+JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoSonglength(JNIEnv* env, jobject thiz, jint subsong);
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGettype(JNIEnv* env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGettitle(JNIEnv* env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetauthor(JNIEnv* env, jobject thiz);
+JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetdesc(JNIEnv* env, jobject thiz);
+JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoGetsubsongs(JNIEnv* env, jobject thiz);
 } // extern "C"
 
 #endif // ANDPLAYER_JNI_H

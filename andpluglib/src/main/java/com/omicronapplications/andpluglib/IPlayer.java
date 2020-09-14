@@ -2,9 +2,20 @@ package com.omicronapplications.andpluglib;
 
 public interface IPlayer {
     int PLAYER_STATE = 1;
+    int SONG_INFO = 2;
     String BUNDLE_REQUEST = "request";
     String BUNDLE_STATE = "state";
     String BUNDLE_INFO = "info";
+    String BUNDLE_SONG = "song";
+    String BUNDLE_TYPE = "type";
+    String BUNDLE_TITLE = "title";
+    String BUNDLE_AUTHOR = "author";
+    String BUNDLE_DESC = "desc";
+    String BUNDLE_LENGTH = "length";
+    String BUNDLE_SONGLENGTH = "songlength";
+    String BUNDLE_SUBSONGS = "subsongs";
+    String BUNDLE_VALID = "valid";
+    String BUNDLE_PLAYLIST = "playlist";
 
     void initialize(Opl emu, int rate, boolean oboe, boolean usestereo, int buffers);
     void uninitialize();
@@ -16,6 +27,7 @@ public interface IPlayer {
     void seek(long ms);
     void rewind(int subsong);
     void setRepeat(boolean repeat);
+    void songInfo(String song, long length);
     boolean getRepeat();
     String getSong();
     long getSonglength(int subsong);

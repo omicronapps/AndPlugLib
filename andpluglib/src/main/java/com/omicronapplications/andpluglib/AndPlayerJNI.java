@@ -45,4 +45,12 @@ class AndPlayerJNI {
     public native boolean oboePause();
     public native boolean oboeStop();
     public native int oboeGetState();
+
+    public native boolean infoLoad(String str);
+    public native long infoSonglength(int subsong);
+    public native String infoGettype();
+    public native String infoGettitle();
+    public native String infoGetauthor();
+    public native String infoGetdesc();
+    public native int infoGetsubsongs();
 }

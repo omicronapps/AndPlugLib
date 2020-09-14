@@ -55,7 +55,8 @@ public class PlayerService extends Service implements
     private static final int PLAYER_SEEK = 9;
     private static final int PLAYER_REWIND = 10;
     private static final int PLAYER_REPEAT = 11;
-    private static final int DEBUG_SETPATH = 12;
+    private static final int INFO_SONG = 12;
+    private static final int DEBUG_SETPATH = 13;
     private static final String BUNDLE_EMU = "emu";
     private static final String BUNDLE_RATE = "rate";
     private static final String BUNDLE_OBOE = "oboe";
@@ -91,6 +92,7 @@ public class PlayerService extends Service implements
     // PlayerRunner/MessageCallback variables
     private final ReentrantLock mLock = new ReentrantLock(); // Guard: mAdPlayer, mTrack, mBuf, mChannels, mBuffers
     private final Condition mPlayerAccess = mLock.newCondition(); // PlayerRunner:wait, MessageCallback:signal
+    private final ReentrantLock mInfoLock = new ReentrantLock(); // Guard: mAdPlayer
     private final AndPlayerJNI mAdPlayer = new AndPlayerJNI(this);
     private AudioTrack mTrack;
     private volatile boolean mIsRunning;
@@ -240,7 +242,7 @@ public class PlayerService extends Service implements
                     } else {
                         Log.w(TAG, "run: not initialized: mTrack:" + mTrack + ", mBuf:" + mBuf);
                         state = PlayerState.ERROR;
-                        info = "Player not initialized: " + mTrack + "/" + mBuf;
+                        info = null;//"Player not initialized: " + mTrack + "/" + mBuf;
                         break;
                     }
                     if (Thread.interrupted()) {
@@ -498,7 +500,7 @@ public class PlayerService extends Service implements
                     data = msg.getData();
                     String song = data.getString(BUNDLE_SONG);
                     if (song == null || song.isEmpty()) {
-                        Log.w(TAG, "load: not initialized: " + song);
+                        Log.w(TAG, "load: not a valid file: " + song);
                         setState(PlayerRequest.LOAD, PlayerState.ERROR, "No song selected");
                         break;
                     }
@@ -623,6 +625,43 @@ public class PlayerService extends Service implements
                     mAdPlayer.oplSetRepeat(mRepeat);
                     break;
 
+                case INFO_SONG:
+                    isLoaded = false;
+                    String type = "";
+                    String title = "";
+                    String author = "";
+                    String desc = "";
+                    long songlength = -1;
+                    int subsongs = -1;
+                    boolean valid = false;
+                    data = msg.getData();
+                    song = data.getString(BUNDLE_SONG);
+                    long length = data.getLong(BUNDLE_LENGTH);
+                    boolean playlist = data.getBoolean(BUNDLE_PLAYLIST);
+                    try {
+                        mInfoLock.lock();
+                        if (song == null || song.isEmpty()) {
+                            Log.w(TAG, "songInfo: not a valid file: " + song);
+                        } else {
+                            isLoaded = mAdPlayer.infoLoad(song);
+                        }
+                        if (isLoaded) {
+                            type = mAdPlayer.infoGettype();
+                            title = mAdPlayer.infoGettitle();
+                            author = mAdPlayer.infoGetauthor();
+                            desc = mAdPlayer.infoGetdesc();
+                            subsongs = mAdPlayer.infoGetsubsongs();
+                            if (!type.startsWith("Reality ADlib Tracker (version ")) {
+                                songlength = mAdPlayer.infoSonglength(-1);
+                            }
+                            valid = true;
+                        }
+                    } finally {
+                        mInfoLock.unlock();
+                    }
+                    sendSongInfo(song, type, title, author, desc, length, songlength, subsongs, valid, playlist);
+                    break;
+
                 case DEBUG_SETPATH:
                     data = msg.getData();
                     mDebugAudio = data.getBoolean(BUNDLE_DEBUGAUDIO);
@@ -673,6 +712,25 @@ public class PlayerService extends Service implements
         }
     }
 
+    private void sendSongInfo(String song, String type, String title, String author, String desc, long length, long songlength, int subsongs, boolean valid, boolean playlist) {
+        if (mReplyHandler != null) {
+            Message msg = mReplyHandler.obtainMessage(SONG_INFO);
+            Bundle data = new Bundle();
+            data.putString(BUNDLE_SONG, song);
+            data.putString(BUNDLE_TYPE, type);
+            data.putString(BUNDLE_TITLE, title);
+            data.putString(BUNDLE_AUTHOR, author);
+            data.putString(BUNDLE_DESC, desc);
+            data.putLong(BUNDLE_LENGTH, length);
+            data.putLong(BUNDLE_SONGLENGTH, songlength);
+            data.putInt(BUNDLE_SUBSONGS, subsongs);
+            data.putBoolean(BUNDLE_VALID, valid);
+            data.putBoolean(BUNDLE_PLAYLIST, playlist);
+            msg.setData(data);
+            mReplyHandler.sendMessage(msg);
+        }
+    }
+
     private boolean canRequestFocus() {
         boolean focus = false;
         AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
@@ -708,7 +766,9 @@ public class PlayerService extends Service implements
             if (data != null) {
                 msg.setData(data);
             }
-            mMessageHandler.removeMessages(what);
+            if (what != INFO_SONG) {
+                mMessageHandler.removeMessages(what);
+            }
             mMessageHandler.sendMessage(msg);
         } else {
             Log.e(TAG, "sendMessageToPlayer: no handler: " + what);
@@ -836,6 +896,14 @@ public class PlayerService extends Service implements
         Bundle data = new Bundle();
         data.putBoolean(BUNDLE_REPEAT, repeat);
         sendMessageToHandler(PLAYER_REPEAT, data);
+    }
+
+    @Override
+    public void songInfo(String song, long length) {
+        Bundle data = new Bundle();
+        data.putString(BUNDLE_SONG, song);
+        data.putLong(BUNDLE_LENGTH, length);
+        sendMessageToHandler(INFO_SONG, data);
     }
 
     @Override
