@@ -637,12 +637,14 @@ public class PlayerService extends Service implements
                     data = msg.getData();
                     song = data.getString(BUNDLE_SONG);
                     long length = data.getLong(BUNDLE_LENGTH);
-                    boolean playlist = data.getBoolean(BUNDLE_PLAYLIST);
+                    boolean playlist = false;
                     try {
                         mInfoLock.lock();
                         if (song == null || song.isEmpty()) {
                             Log.w(TAG, "songInfo: not a valid file: " + song);
                         } else {
+                            file = new File(song);
+                            playlist = isPlaylist(file);
                             isLoaded = mAdPlayer.infoLoad(song);
                         }
                         if (isLoaded) {
@@ -758,6 +760,10 @@ public class PlayerService extends Service implements
             }
         }
         return focus;
+    }
+
+    private static boolean isPlaylist(File file) {
+        return (file != null) && !file.isDirectory() && file.getName().endsWith(".m3u");
     }
 
     private void sendMessageToHandler(int what, Bundle data) {

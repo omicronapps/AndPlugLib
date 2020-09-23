@@ -403,6 +403,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.8.0 Fixed crash regression issue due to unallowed concurrent access to Copl and CPlayer
 - 1.9.0 Fixed issue with some song formats not repeating
 - 2.0.0 Support for retrieving song info separately
+- 2.1.0 Include detection for M3U playlist files
 
 ## License
 
