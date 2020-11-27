@@ -37,8 +37,8 @@ bool AndPlug::isLoaded() {
     return isLoaded;
 }
 
-const char *AndPlug::GetVersion() {
-    return CAdPlug::get_version().c_str();
+std::string AndPlug::GetVersion() {
+    return CAdPlug::get_version();
 }
 
 void AndPlug::Seek(unsigned long ms) {

@@ -15,7 +15,7 @@ public:
     bool isLoaded();
 
     // CAdPlug methods
-    static const char* GetVersion();
+    static std::string GetVersion();
 
     // CPlayer methods - Operational
     void Seek(unsigned long ms);

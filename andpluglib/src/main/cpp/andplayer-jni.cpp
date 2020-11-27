@@ -189,9 +189,9 @@ JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oplC
 }
 
 JNIEXPORT jstring JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugGetversion(JNIEnv* env, jobject thiz) {
-    const char* version = AndPlug::GetVersion();
-    jstring jversion = env->NewStringUTF(version);
-    return jversion;
+    std::string adplug_version = AndPlug::GetVersion();
+    const char* version = adplug_version.c_str();
+    return getJstring(env, version);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plugLoad(JNIEnv *env, jobject thiz, jstring str) {

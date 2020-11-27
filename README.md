@@ -23,7 +23,7 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 
 - [Android 4.0.3](https://developer.android.com/about/versions/android-4.0.3) (API Level: 15) or later (`ICE_CREAM_SANDWICH_MR1`)
 - [CMake](https://cmake.org/) Release 3.4.1 or later
-- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.0.1) or later (`gradle:4.0.1`)
+- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 4.1.1) or later (`gradle:4.1.1`)
 - [AdPlug](https://github.com/adplug/adplug) Version 2.3.3 (_branch/tag:_ `release-2.3.3`)
 - [libbinio](https://github.com/adplug/libbinio) Version 1.5 (_tag:_ `libbionio-1.5`)
 - [Oboe](https://github.com/google/oboe) Version 1.4.3 (_branch:_ `1.4-stable`)
@@ -404,6 +404,7 @@ Copyright (C) 2019-2020 [Fredrik Claesson](https://github.com/omicronapps)
 - 1.9.0 Fixed issue with some song formats not repeating
 - 2.0.0 Support for retrieving song info separately
 - 2.1.0 Include detection for M3U playlist files
+- 2.2.0 JNI bug fix
 
 ## License
 
