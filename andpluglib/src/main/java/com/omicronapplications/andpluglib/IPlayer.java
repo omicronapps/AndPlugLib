@@ -3,6 +3,7 @@ package com.omicronapplications.andpluglib;
 public interface IPlayer {
     int PLAYER_STATE = 1;
     int SONG_INFO = 2;
+    int PLAY_TIME = 3;
     String BUNDLE_REQUEST = "request";
     String BUNDLE_STATE = "state";
     String BUNDLE_INFO = "info";
@@ -16,6 +17,7 @@ public interface IPlayer {
     String BUNDLE_SUBSONGS = "subsongs";
     String BUNDLE_VALID = "valid";
     String BUNDLE_PLAYLIST = "playlist";
+    String BUNDLE_TIME = "time";
 
     void initialize(Opl emu, int rate, boolean oboe, boolean usestereo, int buffers);
     void uninitialize();

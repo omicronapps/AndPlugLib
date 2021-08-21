@@ -66,6 +66,7 @@ public class PlayerService extends Service implements
     private static final String BUNDLE_SEEK = "seek";
     private static final String BUNDLE_SUBSONG = "subsong";
     private static final String BUNDLE_REPEAT = "repeat";
+    private static final String BUNDLE_TIME = "time";
     private static final String BUNDLE_DEBUGOPL = "debugopl";
     private static final String BUNDLE_DEBUGAUDIO = "debugaudio";
     private static final String BUNDLE_DEBUGPATH = "debugpath";
@@ -90,7 +91,7 @@ public class PlayerService extends Service implements
     private int mNumSubsongs;
     private int mCurSubsong;
     // PlayerRunner/MessageCallback variables
-    private final ReentrantLock mLock = new ReentrantLock(); // Guard: mAdPlayer, mTrack, mBuf, mChannels, mBuffers
+    private final ReentrantLock mLock = new ReentrantLock(); // Guard: mAdPlayer, mTrack, mBuf, mChannels, mBuffers, mRate
     private final Condition mPlayerAccess = mLock.newCondition(); // PlayerRunner:wait, MessageCallback:signal
     private final ReentrantLock mInfoLock = new ReentrantLock(); // Guard: mAdPlayer
     private final AndPlayerJNI mAdPlayer = new AndPlayerJNI(this);
@@ -101,6 +102,8 @@ public class PlayerService extends Service implements
     private short[] mBuf;
     private int mChannels;
     private int mBuffers;
+    private int mRate;
+    private long mTotalSamples;
     // Debug use
     private boolean mDebugAudio;
     private boolean mDebugOpl;
@@ -164,7 +167,9 @@ public class PlayerService extends Service implements
         @Override
         public void run() {
             PlayerState state = PlayerState.values()[mAdPlayer.oboeGetState()];
-            if (state == PlayerState.ENDED || state == PlayerState.STOPPED) {
+            long ms = mAdPlayer.oboeGetTime();
+            sendTime(ms);
+            if (state != mState && (state == PlayerState.ENDED || state == PlayerState.STOPPED)) {
                 setState(PlayerRequest.RUN, state, null);
             } else if (mState == PlayerState.LOADED || mState == PlayerState.PLAYING || mState == PlayerState.PAUSED) {
                 mPlayerHandler.postDelayed(this, OBOE_POLLING);
@@ -267,6 +272,9 @@ public class PlayerService extends Service implements
                     info = "AudioTrack error: " + writtenSamples;
                     break;
                 }
+                mTotalSamples += writtenSamples;
+                long ms = 1000 * mTotalSamples / mRate / mChannels;
+                sendTime(ms);
             }
             if (state == PlayerState.DEFAULT) {
                 state = mIsRunning ? PlayerState.ENDED : PlayerState.STOPPED;
@@ -334,6 +342,8 @@ public class PlayerService extends Service implements
 
         private void stopPlayer() {
             mIsRunning = false;
+            mTotalSamples = 0;
+            sendTime(0);
             if (mOboe) {
                 mAdPlayer.oboeStop();
             } else {
@@ -367,6 +377,7 @@ public class PlayerService extends Service implements
                 }
                 mBuf = null;
             }
+            sendTime(0);
         }
 
         private void messageLock() {
@@ -474,6 +485,7 @@ public class PlayerService extends Service implements
                             }
                             mChannels = usestereo ? 2 : 1;
                             mBuffers = buffers;
+                            mRate = rate;
                             // Stereo playback requires double amount of samples
                             mBuf = new short[mChannels * mBuffers];
                         }
@@ -584,6 +596,9 @@ public class PlayerService extends Service implements
                         messageUnlock();
                     }
                     state = paused ? PlayerState.PAUSED : PlayerState.ERROR;
+                    if (paused) {
+                        messageLock();
+                    }
                     setState(PlayerRequest.PAUSE, state, paused ? null : "Failed to pause song");
                     break;
 
@@ -603,6 +618,8 @@ public class PlayerService extends Service implements
                     try {
                         messageLock();
                         mAdPlayer.plugSeek(ms);
+                        mTotalSamples = mRate * mChannels * ms / 1000;
+                        sendTime(ms);
                     } finally {
                         messageUnlock();
                     }
@@ -733,6 +750,18 @@ public class PlayerService extends Service implements
         }
     }
 
+    @Override
+    public void sendTime(long ms) {
+        if (mReplyHandler != null) {
+            Message msg = mReplyHandler.obtainMessage(PLAY_TIME);
+            Bundle data = new Bundle();
+            data.putLong(BUNDLE_TIME, ms);
+            data.putLong(BUNDLE_LENGTH, mLength);
+            msg.setData(data);
+            mReplyHandler.sendMessage(msg);
+        }
+    }
+
     private boolean canRequestFocus() {
         boolean focus = false;
         AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
@@ -782,6 +811,10 @@ public class PlayerService extends Service implements
     }
 
     private void postDestroy() {
+        mPlayerAccess.signalAll();
+        mLock.unlock();
+        mInfoLock.unlock();
+
         mMessageHandler.removeCallbacksAndMessages(null);
         if (mMessageThread != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {

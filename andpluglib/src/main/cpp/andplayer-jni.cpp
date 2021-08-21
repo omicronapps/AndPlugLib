@@ -12,7 +12,8 @@ static JavaVM* s_vm;
 static jmethodID s_classLoaderID;
 static jobject s_classLoaderObject;
 static jobject s_thiz;
-static int s_state;
+static int s_state; // Workaround for failing JNI-Java callbacks
+static long s_ms; // Workaround for failing JNI-Java callbacks
 
 static jobject getClassLoaderObject(JNIEnv* env, const char* name) {
     jclass clazz = env->FindClass(name);
@@ -113,6 +114,10 @@ void setState(int request, int state, const char* info) {
     if (attached == JNI_EDETACHED) {
         s_vm->DetachCurrentThread();
     }
+}
+
+void setTime(long ms) {
+    s_ms = ms;
 }
 
 extern "C"
@@ -220,6 +225,7 @@ JNIEXPORT void JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plug
     AndPlug* plug = andplug();
     if (plug->isLoaded()) {
         plug->Seek(static_cast<unsigned long>(ms));
+        oboe_player()->Seek(static_cast<long>(ms));
     }
 }
 
@@ -295,6 +301,7 @@ JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_plug
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeInitialize(JNIEnv* env, jobject thiz, jint rate, jboolean usestereo) {
     s_state = 1;
+    s_ms = 0;
     if (s_thiz != nullptr && env->GetObjectRefType(s_thiz) == JNIGlobalRefType) {
         env->DeleteGlobalRef(s_thiz);
     }
@@ -304,11 +311,13 @@ JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeUninitialize(JNIEnv* env, jobject thiz) {
     s_state = 0;
+    s_ms = 0;
     return oboe_player()->Uninitialize();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeRestart(JNIEnv* env, jobject thiz) {
     s_state = 1;
+    s_ms = 0;
     return oboe_player()->Restart();
 }
 
@@ -324,11 +333,16 @@ JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeStop(JNIEnv* env, jobject thiz) {
     s_state = 5;
+    s_ms = 0;
     return oboe_player()->Stop();
 }
 
 JNIEXPORT jint JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeGetState(JNIEnv* env, jobject thiz) {
     return s_state;
+}
+
+JNIEXPORT jlong JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_oboeGetTime(JNIEnv* env, jobject thiz) {
+    return s_ms;
 }
 
 JNIEXPORT jboolean JNICALL Java_com_omicronapplications_andpluglib_AndPlayerJNI_infoLoad(JNIEnv *env, jobject thiz, jstring str) {

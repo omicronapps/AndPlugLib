@@ -172,6 +172,11 @@ public class PlayerActivity extends Activity implements IAndPlugCallback, View.O
     }
 
     @Override
+    public void onTime(long ms, long length) {
+        Log.i(TAG, "onTime: " + ms + " ," + length);
+    }
+
+    @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.create_button:

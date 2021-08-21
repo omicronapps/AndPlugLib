@@ -16,6 +16,7 @@ public:
     bool Play();
     bool Pause();
     bool Stop();
+    void Seek(long ms);
 private:
     oboe::DataCallbackResult onAudioReady(oboe::AudioStream *oboeStream, void *audioData, int32_t numFrames);
     void onErrorBeforeClose(oboe::AudioStream* oboeStream, oboe::Result error);
@@ -23,6 +24,7 @@ private:
     int m_rate;
     bool m_usestereo;
     bool m_isrunning;
+    long m_totalsamples;
     Opl* m_opl;
     std::shared_ptr<oboe::AudioStream> m_stream;
 };

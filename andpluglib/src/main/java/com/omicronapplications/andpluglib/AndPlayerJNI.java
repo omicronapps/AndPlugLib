@@ -23,6 +23,11 @@ class AndPlayerJNI {
             mPlayer.setState(IPlayer.PlayerRequest.values()[request], IPlayer.PlayerState.values()[state], info);
         }
     }
+    public void setTime(long ms) {
+        if (mPlayer != null) {
+            mPlayer.sendTime(ms);
+        }
+    }
 
     public native String plugGetversion();
     public native boolean plugLoad(String str);
@@ -45,6 +50,7 @@ class AndPlayerJNI {
     public native boolean oboePause();
     public native boolean oboeStop();
     public native int oboeGetState();
+    public native long oboeGetTime();
 
     public native boolean infoLoad(String str);
     public native long infoSonglength(int subsong);

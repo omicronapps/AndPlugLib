@@ -5,7 +5,7 @@
 
 #define LOG_TAG "OboePlayer"
 
-OboePlayer::OboePlayer(Opl* opl) : m_rate(0), m_usestereo(false), m_isrunning(false), m_opl(opl) {}
+OboePlayer::OboePlayer(Opl* opl) : m_rate(0), m_usestereo(false), m_isrunning(false), m_totalsamples(0), m_opl(opl) {}
 
 OboePlayer::~OboePlayer() {
     Uninitialize();
@@ -49,6 +49,7 @@ bool OboePlayer::Initialize(int rate, bool usestereo) {
         LOGE(LOG_TAG, "OboePlayer::Initialize: channelCount:%d, direction:%d, sampleRate:%d, format:%d", channelCount, direction, sampleRate, format);
     } else {
         initialized = true;
+        m_totalsamples = 0;
     }
 
     return initialized;
@@ -62,6 +63,7 @@ bool OboePlayer::Uninitialize() {
             LOGE(LOG_TAG, "OboePlayer::Uninitialize: %s", oboe::convertToText(result));
         } else {
             uninitialized = true;
+            m_totalsamples = 0;
         }
     }
     return uninitialized;
@@ -71,6 +73,7 @@ bool OboePlayer::Restart() {
     bool restarted = false;
     restarted = Uninitialize();
     restarted &= Initialize(m_rate, m_usestereo);
+    m_totalsamples = 0;
     return restarted;
 }
 
@@ -117,10 +120,15 @@ bool OboePlayer::Stop() {
                 LOGE(LOG_TAG, "OboePlayer::Stop: %s", oboe::convertToText(result));
             } else {
                 m_isrunning = false;
+                m_totalsamples = 0;
             }
         }
     }
     return !m_isrunning;
+}
+
+void OboePlayer::Seek(long ms) {
+    m_totalsamples = m_rate * (m_usestereo ? 2 : 1) * ms / 1000;
 }
 
 oboe::DataCallbackResult OboePlayer::onAudioReady(oboe::AudioStream *oboeStream, void *audioData, int32_t numFrames) {
@@ -140,6 +148,9 @@ oboe::DataCallbackResult OboePlayer::onAudioReady(oboe::AudioStream *oboeStream,
     }
     if (m_isrunning && audioData != nullptr && numFrames > 0) {
         samples = m_opl->Update(audioData, numFrames);
+        m_totalsamples += samples;
+        long ms = 1000 * m_totalsamples / m_rate / (m_usestereo ? 2 : 1);
+        setTime(ms);
         if (samples == 0) {
             ret = oboe::DataCallbackResult::Stop;
             setState(4, 6, nullptr); // PlayerRequest.RUN, PlayerState.ENDED

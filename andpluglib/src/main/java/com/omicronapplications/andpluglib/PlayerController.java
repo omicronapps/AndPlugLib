@@ -92,6 +92,13 @@ public class PlayerController {
                 if (mCallback != null) {
                     mCallback.onSongInfo(song, type, title, author, desc, length, songlength, subsongs, valid, playlist);
                 }
+            } else if (msg.what == IPlayer.PLAY_TIME) {
+                Bundle data = msg.getData();
+                long ms = data.getLong(IPlayer.BUNDLE_TIME);
+                long length = data.getLong(IPlayer.BUNDLE_LENGTH);
+                if (mCallback != null) {
+                    mCallback.onTime(ms, length);
+                }
             }
             return true;
         }

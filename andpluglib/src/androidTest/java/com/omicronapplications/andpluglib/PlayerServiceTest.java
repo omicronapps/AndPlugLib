@@ -51,6 +51,9 @@ public class PlayerServiceTest {
 
         @Override
         public void onSongInfo(String song, String type, String title, String author, String desc, long length, long songlength, int subsongs, boolean valid, boolean playlist) {}
+
+        @Override
+        public void onTime(long ms, long length) {}
     }
 
     private static void waitForCallback() {
