@@ -425,6 +425,7 @@ Copyright (C) 2019-2021 [Fredrik Claesson](https://github.com/omicronapps)
 - 2.1.0 Include detection for M3U playlist files
 - 2.2.0 JNI bug fix
 - 2.3.0 Added playback position reporting, updated to Oboe v1.6.1, native playback bug fix
+- 2.4.0 Fix player crash on exit
 
 ## License
 

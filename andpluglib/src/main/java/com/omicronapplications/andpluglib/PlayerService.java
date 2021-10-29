@@ -811,7 +811,6 @@ public class PlayerService extends Service implements
     }
 
     private void postDestroy() {
-        mPlayerAccess.signalAll();
         mLock.unlock();
         mInfoLock.unlock();
 
