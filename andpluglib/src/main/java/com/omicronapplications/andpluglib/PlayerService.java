@@ -811,9 +811,6 @@ public class PlayerService extends Service implements
     }
 
     private void postDestroy() {
-        mLock.unlock();
-        mInfoLock.unlock();
-
         mMessageHandler.removeCallbacksAndMessages(null);
         if (mMessageThread != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
