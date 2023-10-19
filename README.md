@@ -23,10 +23,10 @@ AndPlugLib is used in [AndPlug](https://play.google.com/store/apps/details?id=co
 
 - [Android 4.0.3](https://developer.android.com/about/versions/android-4.0.3) (API Level: 15) or later (`ICE_CREAM_SANDWICH_MR1`)
 - [CMake](https://cmake.org/) Release 3.4.1 or later
-- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 7.0.1) or later (`gradle:7.0.1`)
+- [Android Gradle Plugin](https://developer.android.com/studio/releases/gradle-plugin) 7.2.2) or later (`gradle:7.2.2`)
 - [AdPlug](https://github.com/adplug/adplug) Version 2.3.3 (_branch/tag:_ `release-2.3.3`)
 - [libbinio](https://github.com/adplug/libbinio) Version 1.5 (_tag:_ `libbionio-1.5`)
-- [Oboe](https://github.com/google/oboe) Version 1.6.1 (_branch:_ `1.6-stable`)
+- [Oboe](https://github.com/google/oboe) Version 1.7.0 (_branch:_ `1.7-stable`)
 
 ## Installation
 
@@ -407,7 +407,7 @@ controller.destroy();
 
 ## Credits
 
-Copyright (C) 2019-2021 [Fredrik Claesson](https://github.com/omicronapps)
+Copyright (C) 2019-2023 [Fredrik Claesson](https://www.omicronapplications.com/)
 
 ## Release History
 
@@ -427,7 +427,8 @@ Copyright (C) 2019-2021 [Fredrik Claesson](https://github.com/omicronapps)
 - 2.3.0 Added playback position reporting, updated to Oboe v1.6.1, native playback bug fix
 - 2.4.0 Fix player crash on exit
 - 2.5.0 Additional player crash fixes
+- 2.6.0 Updated to Oboe v1.7.0, minor bugfixes, change to Apache License Version 2.0
 
 ## License
 
-AndPlugLib is licensed under [GNU LESSER GENERAL PUBLIC LICENSE](LICENSE).
+AndPlugLib is licensed under [Apache License Version 2.0](LICENSE).

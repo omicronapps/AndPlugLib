@@ -224,7 +224,7 @@ public class PlayerService extends Service implements
         public void run() {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
             boolean hasSamples = true;
-            PlayerState state = PlayerState.DEFAULT;
+            PlayerState state = PlayerState.PLAYING;
             String info = null;
             if (!mAdPlayer.plugIsLoaded() || mOboe) {
                 Log.w(TAG, "run: AdPlug not loaded: isLoaded:" + mAdPlayer.plugIsLoaded() + ", mOboe:" + mOboe);
@@ -276,10 +276,12 @@ public class PlayerService extends Service implements
                 long ms = 1000 * mTotalSamples / mRate / mChannels;
                 sendTime(ms);
             }
-            if (state == PlayerState.DEFAULT) {
-                state = mIsRunning ? PlayerState.ENDED : PlayerState.STOPPED;
+            if (mIsRunning) {
+                state = PlayerState.ENDED;
             }
-            setState(PlayerRequest.RUN, state, info);
+            if (state != PlayerState.PLAYING) {
+                setState(PlayerRequest.RUN, state, info);
+            }
         }
     }
 
@@ -304,6 +306,9 @@ public class PlayerService extends Service implements
                 try {
                     if (mTrack == null) {
                         Log.w(TAG, "startPlayer: not initialized");
+                    } else if (mTrack.getPlayState() == AudioTrack.PLAYSTATE_PLAYING) {
+                        // Already playing, ignore
+                        started = true;
                     } else if (mTrack.getPlayState() != AudioTrack.PLAYSTATE_PLAYING) {
                         // Start playing audio data
                         mTrack.play();

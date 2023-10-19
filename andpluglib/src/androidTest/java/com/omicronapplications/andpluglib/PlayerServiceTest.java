@@ -22,8 +22,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
@@ -33,9 +33,12 @@ import static org.junit.Assert.fail;
 
 @RunWith(AndroidJUnit4.class)
 public class PlayerServiceTest {
+    private static final int TEST_TIMEOUT = 5000; // ms
+    private static final int TEST_SLEEP = 100; // ms
+
     private static PlayerService service;
     private static Callback callback;
-    private static CompletableFuture<IPlayer.PlayerState> completableFuture = new CompletableFuture<>();
+    private static CountDownLatch messageLatch;
 
     private static class Callback implements IAndPlugCallback {
         @Override
@@ -46,7 +49,7 @@ public class PlayerServiceTest {
 
         @Override
         public void onNewState(IPlayer.PlayerRequest request, IPlayer.PlayerState state, String info) {
-            completableFuture.complete(state);
+            messageLatch.countDown();
         }
 
         @Override
@@ -56,15 +59,17 @@ public class PlayerServiceTest {
         public void onTime(long ms, long length) {}
     }
 
-    private static void waitForCallback() {
+    private static void prewait() {
+        messageLatch = new CountDownLatch(1);
+    }
+
+    private static void await() {
         try {
-            completableFuture.get();
+            boolean timedOut = messageLatch.await(TEST_TIMEOUT, TimeUnit.MILLISECONDS);
+            assertTrue("await", timedOut);
         } catch (InterruptedException e) {
-            fail(e.getMessage());
-        } catch (ExecutionException e) {
-            fail(e.getMessage());
+            assertFalse(e.getMessage(), false);
         }
-        completableFuture = new CompletableFuture<>();
     }
 
     private static File fileFromResources(String prefix, String suffix, int id) {
@@ -88,7 +93,7 @@ public class PlayerServiceTest {
 
     private static void serviceWait() {
         try {
-            Thread.sleep(100);
+            Thread.sleep(TEST_SLEEP);
         } catch (InterruptedException e)
         {
             assertFalse("InterruptedException", false);
@@ -132,6 +137,7 @@ public class PlayerServiceTest {
     public void testDefaultValues() throws TimeoutException {
         assertFalse("getRepeat", service.getRepeat());
         service.setRepeat(true);
+        serviceWait();
         assertTrue("getRepeat", service.getRepeat());
         service.setRepeat(false);
     }
@@ -139,265 +145,317 @@ public class PlayerServiceTest {
     @Test
     public void testDuplicateCalls() throws TimeoutException {
         // Multiple setups
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
+        await(); // CREATED
 
         // Multiple loads
         File f = fileFromResources("Super_Nova", ".d00", raw.super_nova_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
+        prewait();
         service.load(f.getAbsolutePath());
+        await(); // LOADED
 
         // Multiple playback requests
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
+        service.play();
+        await(); // PLAYING
 
         // Multiple stop requests
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
+        prewait();
         service.stop();
+        await(); // STOPPED
 
         // Multiple unloads
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.unload();
+        await(); // CREATED
 
         // Multiple teardowns
+        prewait();
         service.uninitialize();
-        waitForCallback();
+        await(); // DEFAULT
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
         service.uninitialize();
+        await(); // DEFAULT
     }
 
     @Test
     public void testLoadAndPlay() throws TimeoutException {
         // Setup
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
         assertEquals("getTitle", "", service.getTitle());
         assertEquals("getAuthor", "", service.getAuthor());
         assertEquals("getDesc", " \"GONE...\" by DRAX - converted by JCH, 13/1-1992. Player & music (C) Vibrants, 1992.", service.getDesc());
 
         // Play - stop
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Teardown
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.uninitialize();
-        waitForCallback();
+        await(); // DEFAULT
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
 
     @Test
     public void testMultipleSongs() throws TimeoutException {
         // Setup
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
         // Song 1
         File f = fileFromResources("en lille test", ".d00", raw.en_lille_test_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
         assertEquals("getTitle", "En lille test", service.getTitle());
         assertEquals("getAuthor", "Morten Sigaard", service.getAuthor());
         assertEquals("getDesc", "", service.getDesc());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Song 2
         f = fileFromResources("gone", ".d00", raw.gone_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
         assertEquals("getTitle", "", service.getTitle());
         assertEquals("getAuthor", "", service.getAuthor());
         assertEquals("getDesc", " \"GONE...\" by DRAX - converted by JCH, 13/1-1992. Player & music (C) Vibrants, 1992.", service.getDesc());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Song 3
         f = fileFromResources("fresh", ".d00", raw.fresh_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(service.getState(), IPlayer.PlayerState.LOADED);
         assertEquals("getTitle", "Fresh", service.getTitle());
         assertEquals("getAuthor", "Morten Sigaard", service.getAuthor());
         assertEquals("getDesc", "", service.getDesc());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Song 4
         f = fileFromResources("Super_Nova", ".d00", raw.super_nova_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(service.getState(), IPlayer.PlayerState.LOADED);
         assertEquals("getTitle", "Super Nova", service.getTitle());
         assertEquals("getAuthor", "Metal & Drax (V)", service.getAuthor());
         assertEquals("getDesc", "", service.getDesc());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Song 5
         f = fileFromResources("the alibi", ".d00", raw.the_alibi_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
         assertEquals("getTitle", "", service.getTitle());
         assertEquals("getAuthor", "", service.getAuthor());
         assertEquals("getDesc", " Music originally composed by LAXITY on the Commodore 64 (in his own routine), and then later converted to the PC by JCH.  AdLib Player (C) Copyright 1992 Jens-Christian Huus.", service.getDesc());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Play - stop
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Teardown
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.uninitialize();
-        waitForCallback();
+        await(); // DEFAULT
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
 
     @Test
     public void testPlaybackControls() throws TimeoutException {
         // Setup
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
         File f = fileFromResources("gone", ".d00", raw.gone_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
 
         // Immediate stop
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Play - pause - play - stop
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
         service.pause();
-        serviceWait();
-        waitForCallback();
+        await(); // PAUSED
         assertEquals(IPlayer.PlayerState.PAUSED, service.getState());
+        prewait();
         service.play();
-        serviceWait();
-        waitForCallback();
+        await(); // PLAYING
         assertEquals(IPlayer.PlayerState.PLAYING, service.getState());
+        prewait();
         service.stop();
-        serviceWait();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
 
         // Teardown
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.uninitialize();
-        waitForCallback();
+        await(); // DEFAULT
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
 
     @Test
     public void testSongNotLoaded() throws TimeoutException {
         // Setup
+        prewait();
         service.initialize(IPlayer.Opl.OPL_CEMU, 44100, false, false, 1024);
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
         // Unload with no song loaded (ignored)
+        prewait();
         service.unload();
+        await(); // CREATED
+        assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
         // Unloaded stop - resume - pause - play
+        prewait();
         service.stop();
-        waitForCallback();
+        await(); // STOPPED
         assertEquals(IPlayer.PlayerState.STOPPED, service.getState());
+        prewait();
         service.play();
+        await(); // ERROR
+        prewait();
         service.pause();
+        await(); // PAUSED
+        prewait();
         service.play();
+        await(); // ERROR
 
         // Multiple unload (ignored)
         File f = fileFromResources("the alibi", ".d00", raw.the_alibi_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // LOADED
         assertEquals(IPlayer.PlayerState.LOADED, service.getState());
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
+        prewait();
         service.unload();
+        await(); // CREATED
 
         // Teardown
+        prewait();
         service.uninitialize();
-        waitForCallback();
+        await(); // DEFAULT
         assertEquals(IPlayer.PlayerState.DEFAULT, service.getState());
     }
 
     @Test
     public void testUninitializedCalls() throws TimeoutException {
         // Teardown without setup (ignored)
+        prewait();
         service.uninitialize();
+        await(); // DEFAULT
 
         // Uninitialized unload
+        prewait();
         service.unload();
-        waitForCallback();
+        await(); // CREATED
         assertEquals(IPlayer.PlayerState.CREATED, service.getState());
 
         // Uninitialized load
         File f = fileFromResources("Super_Nova", ".d00", raw.super_nova_d00);
+        prewait();
         service.load(f.getAbsolutePath());
-        waitForCallback();
+        await(); // ERROR
         assertEquals(IPlayer.PlayerState.ERROR, service.getState());
 
         // Uninitialized stop - resume - pause - play
