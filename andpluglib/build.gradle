@@ -1,10 +1,10 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 34
+    compileSdkVersion 35
     defaultConfig {
         minSdkVersion 15
-        targetSdkVersion 34
+        targetSdkVersion 35
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     buildTypes {
@@ -18,6 +18,8 @@ android {
             path "CMakeLists.txt"
         }
     }
+    experimentalProperties["android.ndk.suppressMinSdkVersionError"]=21
+    namespace 'com.omicronapplications.andpluglib'
 }
 
 dependencies {

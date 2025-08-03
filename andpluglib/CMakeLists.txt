@@ -120,6 +120,9 @@ set(ADPLUG_FLAGS "PACKAGE_NAME=\"adplug\";PACKAGE_TARNAME=\"adplug\";PACKAGE_VER
 set_property(SOURCE ${BINIO_FILES} APPEND PROPERTY COMPILE_DEFINITIONS ${BINIO_FLAGS})
 set_property(SOURCE ${ADPLUG_FILES} APPEND PROPERTY COMPILE_DEFINITIONS ${ADPLUG_FLAGS})
 
+target_link_options(${TARGET} PRIVATE "-Wl,-z,max-page-size=16384")
+target_link_options(${TARGET} PRIVATE "-Wl,-z,common-page-size=16384")
+
 target_link_libraries(${TARGET}
                       ${LOG-LIB}
                       oboe)

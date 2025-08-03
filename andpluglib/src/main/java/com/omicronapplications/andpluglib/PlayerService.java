@@ -81,8 +81,10 @@ public class PlayerService extends Service implements
     private Handler mPlayerHandler;
     private Handler mReplyHandler;
     private volatile boolean mRepeat;
+    private volatile boolean mHasFocus;
     private volatile PlayerState mState;
     private PlayerState mLostState;
+    private AudioFocusRequest mFocusRequest;
     private String mSong;
     private long mLength;
     private String mTitle;
@@ -140,6 +142,21 @@ public class PlayerService extends Service implements
         mOboeRunner = new OboeRunner();
         looper = mPlayerThread.getLooper();
         mPlayerHandler = new Handler(looper);
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            mFocusRequest = new AudioFocusRequest.Builder(
+                    AudioManager.AUDIOFOCUS_GAIN).
+                    setAcceptsDelayedFocusGain(false).
+                    setAudioAttributes(new AudioAttributes.Builder().
+                            setContentType(CONTENT_TYPE_MUSIC).
+                            setLegacyStreamType(STREAM_MUSIC).
+                            setUsage(USAGE_MEDIA).
+                            build()).
+                    setFocusGain(AudioManager.AUDIOFOCUS_GAIN).
+                    setOnAudioFocusChangeListener(this).
+                    setWillPauseWhenDucked(true).
+                    build();
+        }
 
         setState(PlayerRequest.SERVICE, PlayerState.DEFAULT, null);
     }
@@ -288,7 +305,8 @@ public class PlayerService extends Service implements
     private final class MessageCallback implements Handler.Callback {
         private boolean startPlayer() {
             boolean started = false;
-            if (!canRequestFocus()) {
+            requestFocus();
+            if (!mHasFocus) {
                 Log.w(TAG, "startPlayer: can not request focus");
                 return false;
             }
@@ -767,33 +785,38 @@ public class PlayerService extends Service implements
         }
     }
 
-    private boolean canRequestFocus() {
-        boolean focus = false;
+    private void requestFocus() {
         AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
-        if (manager != null) {
+        if (!mHasFocus && manager != null) {
             int status;
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                status = manager.requestAudioFocus(new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).
-                        setAcceptsDelayedFocusGain(false).
-                        setAudioAttributes(new AudioAttributes.Builder().
-                                setContentType(CONTENT_TYPE_MUSIC).
-                                setLegacyStreamType(STREAM_MUSIC).
-                                setUsage(USAGE_MEDIA).
-                                build()).
-                        setFocusGain(AudioManager.AUDIOFOCUS_GAIN).
-                        setOnAudioFocusChangeListener(this).
-                        setWillPauseWhenDucked(true).
-                        build());
+                status = manager.requestAudioFocus(mFocusRequest);
             } else {
                 status = manager.requestAudioFocus(this, STREAM_MUSIC, AUDIOFOCUS_GAIN);
             }
             if (status == AUDIOFOCUS_REQUEST_GRANTED) {
-                focus = true;
+                mHasFocus = true;
             } else if (status == AUDIOFOCUS_REQUEST_FAILED) {
-                focus = false;
+                mHasFocus = false;
             }
         }
-        return focus;
+    }
+
+    private void abandonFocus() {
+        AudioManager manager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        if (mHasFocus && manager != null) {
+            int status;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                status = manager.abandonAudioFocusRequest(mFocusRequest);
+            } else {
+                status = manager.abandonAudioFocus(this);
+            }
+            if (status == AUDIOFOCUS_REQUEST_GRANTED) {
+                mHasFocus = false;
+            } else if (status == AUDIOFOCUS_REQUEST_FAILED) {
+                mHasFocus = true;
+            }
+        }
     }
 
     private static boolean isPlaylist(File file) {
@@ -855,15 +878,16 @@ public class PlayerService extends Service implements
             case AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK:
             case AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE:
                 if (mLostState == PlayerState.PLAYING) {
-                    mLostState = getState();
                     play();
                 }
+                mHasFocus = true;
                 break;
             case AUDIOFOCUS_LOSS:
             case AUDIOFOCUS_LOSS_TRANSIENT:
             case AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                    mLostState = getState();
-                    pause();
+                mLostState = getState();
+                pause();
+                abandonFocus();
                 break;
             default:
                 break;
